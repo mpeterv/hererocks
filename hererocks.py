@@ -43,8 +43,12 @@ def quote(command_arg):
 
 def run_command(*args):
     command = " ".join(args)
-    print(command)
-    assert subprocess.call(command, shell=True) == 0, "Couln't run " + command
+
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
+    except subprocess.CalledProcessError as exception:
+        sys.exit("Error: got exitcode {} from command {}\nOutput:\n{}".format(
+            exception.returncode, command, exception.output))
 
 lua_versions = ([
     "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
@@ -97,6 +101,9 @@ def git_clone_command(repo):
 def cached_archive_name(name, version):
     return os.path.join(cache_path, name + version)
 
+def capitalize(s):
+    return s[0].upper() + s[1:]
+
 def fetch(versions, version, temp_dir):
     raw_versions, translations, downloads, name, repo = versions
 
@@ -108,9 +115,14 @@ def fetch(versions, version, temp_dir):
             os.makedirs(cache_path)
 
         archive_name = cached_archive_name(name, version)
+        url = downloads + "/" + name + "-" + version + ".tar.gz"
+        message = "Fetching {} from {}".format(capitalize(name), url)
 
         if not os.path.exists(archive_name):
-            urlretrieve(downloads + "/" + name + "-" + version + ".tar.gz", archive_name)
+            print(message)
+            urlretrieve(url, archive_name)
+        else:
+            print(message + " (cached)")
 
         archive = tarfile.open(archive_name, "r:gz")
         archive.extractall(temp_dir)
@@ -120,19 +132,24 @@ def fetch(versions, version, temp_dir):
         return result_dir
 
     if version.startswith("@"):
-        assert repo, "No default git repo for standard Lua"
+        if not repo:
+            sys.exit("Error: no default git repo for standard Lua ")
+
         ref = version[1:] or "master"
     elif "@" in version:
         repo, _, ref = version.partition("@")
     else:
-        assert os.path.exists(version), "Bad {}{} version {}".format(
-            name[0].upper(), name[1:], version)
+        if not os.path.exists(version):
+            sys.exit("Error: bad {} version {}".format(capitalize(name), version))
+
+        print("Using {} from {}".format(capitalize(name), version))
         result_dir = os.path.join(temp_dir, name)
         shutil.copytree(version, result_dir)
         os.chdir(result_dir)
         return result_dir
 
     result_dir = os.path.join(temp_dir, name)
+    print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
     run_command(git_clone_command(repo), quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
@@ -218,6 +235,7 @@ def apply_compat(lua_path, nominal_version, is_luajit, compat):
 
 def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir):
     lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, temp_dir)
+    print("Building " + ("LuaJIT" if is_luajit else "Lua"))
     nominal_version = detect_lua_version(lua_path)
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
     patch_default_paths(lua_path, package_path, package_cpath)
@@ -228,6 +246,7 @@ def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir
 
     if is_luajit:
         run_command("make", "PREFIX=" + quote(target_dir))
+        print("Installing LuaJIT")
         run_command("make install", "PREFIX=" + quote(target_dir),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
                     "INSTALL_INC=" + quote(os.path.join(target_dir, "include")))
@@ -236,6 +255,7 @@ def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir
             os.remove(os.path.join(target_dir, "bin", "luajit_symlink"))
     else:
         run_command("make", lua_target)
+        print("Installing Lua")
         run_command("make install", "INSTALL_TOP=" + quote(target_dir))
 
 def install_luarocks(target_dir, luarocks_version, temp_dir):
@@ -244,8 +264,10 @@ def install_luarocks(target_dir, luarocks_version, temp_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
+    print("Building LuaRocks")
     run_command("./configure", "--prefix=" + quote(target_dir), "--with-lua=" + quote(target_dir))
     run_command("make build")
+    print("Installing LuaRocks")
     run_command("make install")
 
 def main():
@@ -309,6 +331,7 @@ def main():
         os.chdir(start_dir)
 
     shutil.rmtree(temp_dir)
+    print("Done.")
 
 if __name__ == "__main__":
     main()
