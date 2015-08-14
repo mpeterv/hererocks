@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+"""A tool for installing Lua and LuaRocks locally."""
+
 from __future__ import print_function
 
 import argparse
@@ -15,7 +18,8 @@ try:
 except ImportError:
     from urllib.request import urlretrieve
 
-hererocks_version = "Hererocks 0.0.1"
+hererocks_version = "Hererocks 0.0.3"
+__all__ = ["main"]
 
 platform_to_lua_target = {
     "linux": "linux",

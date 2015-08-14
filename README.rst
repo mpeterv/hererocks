@@ -6,7 +6,9 @@ hererocks
 Installation
 ------------
 
-TODO: package and publish on PyPI.
+Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
+
+Manually: dowbload hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/master/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
