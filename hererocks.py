@@ -265,7 +265,8 @@ def install_luarocks(target_dir, luarocks_version, temp_dir):
         os.makedirs(target_dir)
 
     print("Building LuaRocks")
-    run_command("./configure", "--prefix=" + quote(target_dir), "--with-lua=" + quote(target_dir))
+    run_command("./configure", "--prefix=" + quote(target_dir),
+                "--with-lua=" + quote(target_dir), "--force-config")
     run_command("make build")
     print("Installing LuaRocks")
     run_command("make install")
