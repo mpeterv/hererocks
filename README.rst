@@ -8,7 +8,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: dowbload hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/master/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/master/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
@@ -56,3 +56,35 @@ Installing LuaRocks
 Available versions: 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
 
 Versions 2.1.0 - 2.1.2 do not support Lua 5.3.
+
+Using hererocks to set up automated testing
+-------------------------------------------
+
+Popular continuous integration services such as `Travis-CI <https://travis-ci.org/>`_ and `Drone.io <https://drone.io/>`_ do not support Lua out of the box. That can be solved using hererocks in just a couple of lines. Here is an example of Travis-CI configuration file (``.travis.yml``) using hererocks to install a rock and run `Busted <http://olivinelabs.com/busted/>`_ test suite under Lua 5.1, 5.2, 5.3, LuaJIT 2.0 and 2.1:
+
+.. code-block:: yaml
+
+  language: python # Need python environment for pip
+  sudo: false # Use container-based infrastructure
+
+  env:
+    - LUA="lua=5.1"
+    - LUA="lua=5.2"
+    - LUA="lua=5.3"
+    - LUA="luajit=2.0"
+    - LUA="luajit=2.1"
+
+  before_install:
+    - pip install hererocks
+    - hererocks here -r^ --$LUA # Install latest LuaRocks version
+                                # plus the Lua version for this build job
+                                # into 'here' subdirectory
+    - export PATH=$PATH:$PWD/here/bin # Add directory with all installed binaries to PATH
+    - luarocks install busted
+
+  install:
+    - luarocks make # Install the rock, assuming there is a rockspec
+                    # in the root of the repository
+
+  script:
+    - busted spec # Run the test suite, assuming tests are in the 'spec' subdirectory
