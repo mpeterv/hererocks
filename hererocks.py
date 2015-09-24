@@ -148,7 +148,7 @@ def fetch(versions, version, temp_dir):
 
         print("Using {} from {}".format(capitalize(name), version))
         result_dir = os.path.join(temp_dir, name)
-        shutil.copytree(version, result_dir)
+        shutil.copytree(version, result_dir, ignore=lambda _, __: {".git"})
         os.chdir(result_dir)
         return result_dir
 
