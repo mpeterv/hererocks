@@ -74,7 +74,7 @@ luajit_versions = ([
     "2.0": "2.0.4",
     "2.1": "@v2.1",
     "^": "2.0.4"
-}, "http://luajit.org/download", "LuaJIT", "http://luajit.org/git/luajit-2.0.git")
+}, "http://luajit.org/download", "LuaJIT", "https://github.com/luajit/luajit")
 
 luarocks_versions = ([
     "2.1.0", "2.1.1", "2.1.2",
@@ -86,7 +86,7 @@ luarocks_versions = ([
     "3": "@luarocks-3",
     "^": "2.2.2"
 }, "http://keplerproject.github.io/luarocks/releases", "luarocks",
-    "https://github.com/keplerproject/luarocks.git"
+    "https://github.com/keplerproject/luarocks"
 )
 
 clever_http_git_whitelist = [
