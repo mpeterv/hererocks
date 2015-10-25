@@ -269,7 +269,7 @@ def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir
         run_command("make install", "INSTALL_TOP=" + quote(target_dir))
 
 def install_luarocks(target_dir, luarocks_version, temp_dir):
-    luarocks_path = fetch(luarocks_versions, luarocks_version, temp_dir)
+    fetch(luarocks_versions, luarocks_version, temp_dir)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
