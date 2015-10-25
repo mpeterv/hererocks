@@ -203,19 +203,25 @@ def patch_build_option(lua_path, old, new):
     makefile.close()
 
 def get_luarocks_paths(target_dir, nominal_version):
+    local_paths_first = nominal_version == "5.1"
+
     module_path = os.path.join(target_dir, "share", "lua", nominal_version)
-    package_path = ";".join([
+    module_path_parts = [
         os.path.join(module_path, "?.lua"),
-        os.path.join(module_path, "?", "init.lua"),
-        os.path.join(".", "?.lua")
-    ])
+        os.path.join(module_path, "?", "init.lua")
+    ]
+    module_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?.lua"))
+    package_path = ";".join(module_path_parts)
+
     cmodule_path = os.path.join(target_dir, "lib", "lua", nominal_version)
     so_extension = ".dll" if os.name == "nt" else ".so"
-    package_cpath = ";".join([
+    cmodule_path_parts = [
         os.path.join(cmodule_path, "?" + so_extension),
-        os.path.join(cmodule_path, "loadall" + so_extension),
-        os.path.join(".", "?" + so_extension)
-    ])
+        os.path.join(cmodule_path, "loadall" + so_extension)
+    ]
+    cmodule_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?" + so_extension))
+    package_cpath = ";".join(cmodule_path_parts)
+
     return package_path, package_cpath
 
 def apply_compat(lua_path, nominal_version, is_luajit, compat):
