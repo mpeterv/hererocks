@@ -260,13 +260,14 @@ def check_subdir(path, subdir):
 
 def move_files(path, *files):
     for src in files:
-        dst = os.path.join(path, os.path.basename(src))
+        if src is not None:
+            dst = os.path.join(path, os.path.basename(src))
 
-        # On Windows os.rename will fail if destination exists.
-        if os.path.exists(dst):
-            os.remove(dst)
+            # On Windows os.rename will fail if destination exists.
+            if os.path.exists(dst):
+                os.remove(dst)
 
-        os.rename(src, dst)
+            os.rename(src, dst)
 
 class LuaBuilder(object):
     def __init__(self, target, lua, compat):
@@ -304,6 +305,8 @@ class LuaBuilder(object):
         self.arch_file = "liblua.a"
         self.lua_file = "lua"
         self.luac_file = "luac"
+        self.scflags = None
+        self.dll_file = None
 
         if self.target == "linux" or self.target == "freebsd":
             self.cflags = "-DLUA_USE_LINUX"
@@ -319,28 +322,30 @@ class LuaBuilder(object):
             self.cflags = "-DLUA_USE_MACOSX -DLUA_USE_READLINE"
             self.lflags = "-lreadline"
             self.cc = "cc"
-        elif self.target == "mingw":
-            self.ar = self.cc + " -shared -o"
-            self.ranlib = "strip --strip-unneeded"
-            self.arch_file = "lua5" + self.lua[2] + ".dll"
-            self.lua_file += ".exe"
-            self.luac_file += ".exe"
-            self.cflags = "-DLUA_BUILD_AS_DLL"
-            self.lflags = "-s"
         else:
             self.lflags = ""
 
-            if self.target == "posix":
+            if self.target == "mingw":
+                self.arch_file = "liblua5" + self.lua[2] + ".a"
+                self.lua_file += ".exe"
+                self.luac_file += ".exe"
+                self.cflags = "-DLUA_BUILD_AS_DLL"
+                self.scflags = ""
+            elif self.target == "posix":
                 self.cflags = "-DLUA_USE_POSIX"
             else:
                 self.cflags = ""
 
+        if self.scflags is None:
+            self.scflags = self.cflags
+
         compat_cflags = self.get_compat_cflags()
         self.cflags = space_cat("-O2 -Wall -Wextra", self.cflags, compat_cflags)
+        self.scflags = space_cat("-O2 -Wall -Wextra", self.scflags, compat_cflags)
         self.lflags = space_cat(self.lflags, "-lm")
 
-    def get_compile_cmd(self, src_file, obj_file):
-        return space_cat(self.cc, self.cflags, "-c -o", obj_file, src_file)
+    def get_compile_cmd(self, src_file, obj_file, static):
+        return space_cat(self.cc, self.scflags if static else self.cflags, "-c -o", obj_file, src_file)
 
     def get_arch_cmd(self, obj_files, arch_file):
         return space_cat(self.ar, arch_file, *obj_files)
@@ -351,12 +356,12 @@ class LuaBuilder(object):
     def get_link_cmd(self, obj_files, arch_file, exec_file):
         return space_cat(self.cc, space_cat(*obj_files), arch_file, self.lflags, "-o", exec_file)
 
-    def compile_bases(self, bases, verbose):
+    def compile_bases(self, bases, verbose, static=False):
         obj_files = []
 
         for base in sorted(bases):
             obj_file = base + ".o"
-            run_command(verbose, self.get_compile_cmd(base + ".c", obj_file))
+            run_command(verbose, self.get_compile_cmd(base + ".c", obj_file, static))
             obj_files.append(obj_file)
 
         return obj_files
@@ -379,14 +384,24 @@ class LuaBuilder(object):
         run_command(verbose, self.get_arch_cmd(lib_obj_files, self.arch_file))
         run_command(verbose, self.get_index_cmd(self.arch_file))
 
+        luac_obj_files = self.compile_bases(luac_bases, verbose, True)
+        run_command(verbose, self.get_link_cmd(luac_obj_files, self.arch_file, self.luac_file))
+
+        if self.target == "mingw":
+            orig_arch_file = self.arch_file
+            self.ar = self.cc + " -shared -o"
+            self.ranlib = "strip --strip-unneeded"
+            self.arch_file = "lua5" + self.lua[2] + ".dll"
+            self.lflags = "-s"
+            run_command(verbose, self.get_arch_cmd(lib_obj_files, self.arch_file))
+            run_command(verbose, self.get_index_cmd(self.arch_file))
+            self.arch_file, self.dll_file = orig_arch_file, self.arch_file
+
         lua_obj_files = self.compile_bases(lua_bases, verbose)
         run_command(verbose, self.get_link_cmd(lua_obj_files, self.arch_file, self.lua_file))
 
-        luac_obj_files = self.compile_bases(luac_bases, verbose)
-        run_command(verbose, self.get_link_cmd(luac_obj_files, self.arch_file, self.luac_file))
-
     def install(self, target_dir):
-        move_files(check_subdir(target_dir, "bin"), self.lua_file, self.luac_file)
+        move_files(check_subdir(target_dir, "bin"), self.lua_file, self.luac_file, self.dll_file)
 
         lua_hpp = "lua.hpp"
 
