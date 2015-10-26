@@ -29,7 +29,7 @@ platform_to_lua_target = {
     "freebsd": "freebsd"
 }
 
-def get_default_lua_target():
+def get_lua_target():
     for platform, lua_target in platform_to_lua_target.items():
         if sys.platform.startswith(platform):
             return lua_target
@@ -46,14 +46,23 @@ else:
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
 
-def run_command(*args):
-    command = " ".join(args)
+def space_cat(*args):
+    return " ".join(filter(None, args))
+
+def run_command(verbose, *args):
+    command = space_cat(*args)
+
+    if verbose:
+        print("Running " + command)
 
     try:
-        subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as exception:
         sys.exit("Error: got exitcode {} from command {}\nOutput:\n{}".format(
             exception.returncode, command, exception.output))
+
+    if verbose and output:
+        sys.stdout.write(output)
 
 lua_versions = ([
     "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
@@ -113,7 +122,7 @@ def cached_archive_name(name, version):
 def capitalize(s):
     return s[0].upper() + s[1:]
 
-def fetch(versions, version, temp_dir):
+def fetch(versions, version, verbose, temp_dir):
     raw_versions, translations, downloads, name, repo = versions
 
     if version in translations:
@@ -159,11 +168,11 @@ def fetch(versions, version, temp_dir):
 
     result_dir = os.path.join(temp_dir, name)
     print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    run_command(git_clone_command(repo, ref), quote(repo), quote(result_dir))
+    run_command(verbose, git_clone_command(repo, ref), quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
     if ref != "master":
-        run_command("git checkout", quote(ref))
+        run_command(verbose, "git checkout", quote(ref))
 
     return result_dir
 
@@ -248,8 +257,122 @@ def apply_compat(lua_path, nominal_version, is_luajit, compat):
             elif compat == "5.1":
                 patch_build_option(lua_path, " -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
 
-def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir):
-    lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, temp_dir)
+class LuaBuilder(object):
+    def __init__(self, target, lua, compat):
+        self.target = target
+        self.lua = lua
+        self.compat = compat
+        self.set_build_vars()
+
+    def get_compat_cflags(self):
+        if self.lua == "5.1":
+            return ""
+        elif self.lua == "5.2":
+            if self.compat in ["none", "5.2"]:
+                return ""
+            else:
+                return "-DLUA_COMPAT_ALL"
+        elif self.lua == "5.3":
+            if self.compat == "none":
+                return ""
+            elif self.compat == "all":
+                return "-DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2"
+            elif self.compat == "5.1":
+                return "-DLUA_COMPAT_5_1"
+            else:
+                return "-DLUA_COMPAT_5_2"
+
+    def set_build_vars(self):
+        if self.lua == "5.3":
+            self.cc = "gcc -std=gnu99"
+        else:
+            self.cc = "gcc"
+
+        self.ar = "ar rcu"
+        self.ranlib = "ranlib"
+
+        if self.target == "linux" or self.target == "freebsd":
+            self.cflags = "-DLUA_USE_LINUX"
+
+            if self.target == "linux":
+                if self.lua == "5.1":
+                    self.lflags = "-Wl,-E -ldl -lreadline -lhistory -lncurses"
+                else:
+                    self.lflags = "-Wl,-E -ldl -lreadline"
+            else:
+                self.lflags = "-Wl,-E -lreadline"
+        elif self.target == "macosx":
+            self.cflags = "-DLUA_USE_MACOSX -DLUA_USE_READLINE"
+            self.lflags = "-lreadline"
+            self.cc = "cc"
+        elif self.target == "mingw":
+            self.ar = self.cc + " -shared -o"
+            self.ranlib = "strip --strip-unneeded"
+            self.cflags = "-DLUA_BUILD_AS_DLL"
+            self.lflags = "-s"
+        else:
+            self.lflags = ""
+
+            if self.target == "posix":
+                self.cflags = "-DLUA_USE_POSIX"
+            else:
+                self.cflags = ""
+
+        compat_cflags = self.get_compat_cflags()
+        self.cflags = space_cat("-O2 -Wall -Wextra", self.cflags, compat_cflags)
+        self.lflags = space_cat(self.lflags, "-lm")
+
+    def get_compile_cmd(self, src_file, obj_file):
+        return space_cat(self.cc, self.cflags, "-c -o", obj_file, src_file)
+
+    def get_arch_cmd(self, obj_files, arch_file):
+        return space_cat(self.ar, arch_file, *obj_files)
+
+    def get_index_cmd(self, arch_file):
+        return space_cat(self.ranlib, arch_file)
+
+    def get_link_cmd(self, obj_files, arch_file, exec_file):
+        return space_cat(self.cc, space_cat(*obj_files), arch_file, self.lflags, "-o", exec_file)
+
+    def compile_bases(self, bases, verbose):
+        obj_files = []
+
+        for base in sorted(bases):
+            obj_file = base + ".o"
+            run_command(verbose, self.get_compile_cmd(base + ".c", obj_file))
+            obj_files.append(obj_file)
+
+        return obj_files
+
+    def build(self, verbose):
+        os.chdir("src")
+
+        lib_bases = []
+        lua_bases = []
+        luac_bases = []
+
+        for path in os.listdir("."):
+            base, ext = os.path.splitext(path)
+
+            if ext == ".c":
+                bases = lua_bases if base == "lua" else luac_bases if base in ["luac", "print"] else lib_bases
+                bases.append(base)
+
+        lib_obj_files = self.compile_bases(lib_bases, verbose)
+        run_command(verbose, self.get_arch_cmd(lib_obj_files, "liblua.a"))
+        run_command(verbose, self.get_index_cmd("liblua.a"))
+
+        lua_obj_files = self.compile_bases(lua_bases, verbose)
+        run_command(verbose, self.get_link_cmd(lua_obj_files, "liblua.a", "lua"))
+
+        luac_obj_files = self.compile_bases(luac_bases, verbose)
+        run_command(verbose, self.get_link_cmd(luac_obj_files, "liblua.a", "luac"))
+
+        os.chdir("..")
+
+def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
+    lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, verbose, temp_dir)
+
     print("Building " + ("LuaJIT" if is_luajit else "Lua"))
     nominal_version = detect_lua_version(lua_path)
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
@@ -260,31 +383,32 @@ def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, temp_dir
         os.makedirs(target_dir)
 
     if is_luajit:
-        run_command("make", "PREFIX=" + quote(target_dir))
+        run_command(verbose, "make", "PREFIX=" + quote(target_dir))
         print("Installing LuaJIT")
-        run_command("make install", "PREFIX=" + quote(target_dir),
+        run_command(verbose, "make install", "PREFIX=" + quote(target_dir),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
                     "INSTALL_INC=" + quote(os.path.join(target_dir, "include")))
 
         if os.path.exists(os.path.join(target_dir, "bin", "luajit_symlink")):
             os.remove(os.path.join(target_dir, "bin", "luajit_symlink"))
     else:
-        run_command("make", lua_target)
+        builder = LuaBuilder(get_lua_target(), nominal_version, compat)
+        builder.build(verbose)
         print("Installing Lua")
-        run_command("make install", "INSTALL_TOP=" + quote(target_dir))
+        run_command(verbose, "make install", "INSTALL_TOP=" + quote(target_dir))
 
-def install_luarocks(target_dir, luarocks_version, temp_dir):
-    fetch(luarocks_versions, luarocks_version, temp_dir)
+def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
+    fetch(luarocks_versions, luarocks_version, verbose, temp_dir)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
     print("Building LuaRocks")
-    run_command("./configure", "--prefix=" + quote(target_dir),
+    run_command(verbose, "./configure", "--prefix=" + quote(target_dir),
                 "--with-lua=" + quote(target_dir), "--force-config")
-    run_command("make build")
+    run_command(verbose, "make build")
     print("Installing LuaRocks")
-    run_command("make install")
+    run_command(verbose, "make install")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -320,8 +444,9 @@ def main():
     parser.add_argument(
         "-c", "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
-    parser.add_argument("-t", "--target", help="Use 'make TARGET' when building standard Lua.",
-                        default=get_default_lua_target())
+    parser.add_argument(
+        "--verbose", default=False, action="store_true",
+        help="Show executed commands and their output.")
     parser.add_argument("-v", "--version", help="Show program's version number and exit.",
                         action="version", version=hererocks_version)
     parser.add_argument("-h", "--help", help="Show this help message and exit.", action="help")
@@ -339,11 +464,11 @@ def main():
 
     if args.lua or args.luajit:
         install_lua(abs_location, args.lua or args.luajit, args.luajit,
-                    args.target, args.compat, temp_dir)
+                    args.compat, args.verbose, temp_dir)
         os.chdir(start_dir)
 
     if args.luarocks:
-        install_luarocks(abs_location, args.luarocks, temp_dir)
+        install_luarocks(abs_location, args.luarocks, args.verbose, temp_dir)
         os.chdir(start_dir)
 
     shutil.rmtree(temp_dir)
