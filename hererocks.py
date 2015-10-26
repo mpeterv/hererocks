@@ -51,18 +51,20 @@ def space_cat(*args):
 
 def run_command(verbose, *args):
     command = space_cat(*args)
+    runner = subprocess.check_output
 
     if verbose:
         print("Running " + command)
+        runner = subprocess.check_call
 
     try:
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
+        runner(command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as exception:
-        sys.exit("Error: got exitcode {} from command {}\nOutput:\n{}".format(
-            exception.returncode, command, exception.output))
+        if not verbose:
+            sys.stdout.write(exception.output)
 
-    if verbose and output:
-        sys.stdout.write(output)
+        sys.exit("Error: got exitcode {} from command {}\n".format(
+            exception.returncode, command))
 
 lua_versions = ([
     "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
