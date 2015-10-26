@@ -238,24 +238,12 @@ def get_luarocks_paths(target_dir, nominal_version):
 
     return package_path, package_cpath
 
-def apply_compat(lua_path, nominal_version, is_luajit, compat):
+def apply_luajit_compat(lua_path, compat):
     if compat != "default":
-        if is_luajit:
-            if compat in ["all", "5.2"]:
-                patch_build_option(lua_path,
-                                   "#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
-                                   "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
-        elif nominal_version == "5.2":
-            if compat in ["none", "5.2"]:
-                patch_build_option(lua_path, " -DLUA_COMPAT_ALL", "")
-        elif nominal_version == "5.3":
-            if compat == "none":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2", "")
-            elif compat == "all":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2",
-                                   " -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2")
-            elif compat == "5.1":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
+        if compat in ["all", "5.2"]:
+            patch_build_option(lua_path,
+                               "#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
+                               "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
 
 def check_subdir(path, subdir):
     path = os.path.join(path, subdir)
@@ -410,12 +398,12 @@ def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
     nominal_version = detect_lua_version(lua_path)
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
     patch_default_paths(lua_path, package_path, package_cpath)
-    apply_compat(lua_path, nominal_version, is_luajit, compat)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
     if is_luajit:
+        apply_luajit_compat(lua_path, compat)
         run_command(verbose, "make", "PREFIX=" + quote(target_dir))
         print("Installing LuaJIT")
         run_command(verbose, "make install", "PREFIX=" + quote(target_dir),
