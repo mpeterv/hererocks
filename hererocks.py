@@ -190,6 +190,9 @@ def detect_lua_version(lua_path):
             return "5." + match.group(1)
 
 def patch_default_paths(lua_path, package_path, package_cpath):
+    package_path = package_path.replace("\\", "\\\\")
+    package_cpath = package_cpath.replace("\\", "\\\\")
+
     luaconf_h = open(os.path.join(lua_path, "src", "luaconf.h"), "rb")
     luaconf_src = luaconf_h.read()
     luaconf_h.close()
