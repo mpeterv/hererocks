@@ -368,7 +368,34 @@ class LuaBuilder(object):
         luac_obj_files = self.compile_bases(luac_bases, verbose)
         run_command(verbose, self.get_link_cmd(luac_obj_files, "liblua.a", "luac"))
 
-        os.chdir("..")
+def check_subdir(path, subdir):
+    path = os.path.join(path, subdir)
+
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    return path
+
+def move_files(path, *files):
+    for src in files:
+        dst = os.path.join(path, os.path.basename(src))
+
+        # On Windows os.rename will fail if destination exists.
+        if os.path.exists(dst):
+            os.remove(dst)
+
+        os.rename(src, dst)
+
+def install_lua_files(target_dir):
+    move_files(check_subdir(target_dir, "bin"), "lua", "luac")
+
+    lua_hpp = "lua.hpp"
+
+    if not os.path.exists(lua_hpp):
+        lua_hpp = "../etc/lua.hpp"
+
+    move_files(check_subdir(target_dir, "include"), "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+    move_files(check_subdir(target_dir, "lib"), "liblua.a")
 
 def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
     lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, verbose, temp_dir)
@@ -395,7 +422,7 @@ def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
         builder = LuaBuilder(get_lua_target(), nominal_version, compat)
         builder.build(verbose)
         print("Installing Lua")
-        run_command(verbose, "make install", "INSTALL_TOP=" + quote(target_dir))
+        install_lua_files(target_dir)
 
 def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
     fetch(luarocks_versions, luarocks_version, verbose, temp_dir)
