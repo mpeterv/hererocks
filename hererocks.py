@@ -8,6 +8,7 @@ import argparse
 import os
 import re
 import shutil
+import string
 import subprocess
 import sys
 import tarfile
@@ -94,11 +95,15 @@ clever_http_git_whitelist = [
     "http://bitbucket.com/", "https://bitbucket.com/"
 ]
 
-def git_clone_command(repo):
+def git_clone_command(repo, ref):
     # Http(s) transport may be dumb and not understand --depth.
     if repo.startswith("http://") or repo.startswith("https://"):
         if not any(map(repo.startswith, clever_http_git_whitelist)):
             return "git clone"
+
+    # Have to clone whole repo to get a specific commit.
+    if all(c in string.hexdigits for c in ref):
+        return "git clone"
 
     return "git clone --depth=1"
 
@@ -154,7 +159,7 @@ def fetch(versions, version, temp_dir):
 
     result_dir = os.path.join(temp_dir, name)
     print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    run_command(git_clone_command(repo), quote(repo), quote(result_dir))
+    run_command(git_clone_command(repo, ref), quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
     if ref != "master":
