@@ -444,12 +444,16 @@ def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-    print("Building LuaRocks")
-    run_command(verbose, "./configure", "--prefix=" + quote(target_dir),
-                "--with-lua=" + quote(target_dir), "--force-config")
-    run_command(verbose, "make build")
     print("Installing LuaRocks")
-    run_command(verbose, "make install")
+
+    if get_lua_target() == "mingw":
+        run_command(verbose, "install.bat", "/Q", "/LUA", quote(target_dir),
+                    "/P", quote(target_dir), "/SELFCONTAINED", "/FORCECONFIG", "/MW")
+    else:
+        run_command(verbose, "./configure", "--prefix=" + quote(target_dir),
+                    "--with-lua=" + quote(target_dir), "--force-config")
+        run_command(verbose, "make build")
+        run_command(verbose, "make install")
 
 def main():
     parser = argparse.ArgumentParser(
