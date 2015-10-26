@@ -257,12 +257,30 @@ def apply_compat(lua_path, nominal_version, is_luajit, compat):
             elif compat == "5.1":
                 patch_build_option(lua_path, " -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
 
+def check_subdir(path, subdir):
+    path = os.path.join(path, subdir)
+
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    return path
+
+def move_files(path, *files):
+    for src in files:
+        dst = os.path.join(path, os.path.basename(src))
+
+        # On Windows os.rename will fail if destination exists.
+        if os.path.exists(dst):
+            os.remove(dst)
+
+        os.rename(src, dst)
+
 class LuaBuilder(object):
     def __init__(self, target, lua, compat):
         self.target = target
         self.lua = lua
         self.compat = compat
-        self.set_build_vars()
+        self.set_params()
 
     def get_compat_cflags(self):
         if self.lua == "5.1":
@@ -282,7 +300,7 @@ class LuaBuilder(object):
             else:
                 return "-DLUA_COMPAT_5_2"
 
-    def set_build_vars(self):
+    def set_params(self):
         if self.lua == "5.3":
             self.cc = "gcc -std=gnu99"
         else:
@@ -290,6 +308,9 @@ class LuaBuilder(object):
 
         self.ar = "ar rcu"
         self.ranlib = "ranlib"
+        self.arch_file = "liblua.a"
+        self.lua_file = "lua"
+        self.luac_file = "luac"
 
         if self.target == "linux" or self.target == "freebsd":
             self.cflags = "-DLUA_USE_LINUX"
@@ -308,6 +329,9 @@ class LuaBuilder(object):
         elif self.target == "mingw":
             self.ar = self.cc + " -shared -o"
             self.ranlib = "strip --strip-unneeded"
+            self.arch_file = "lua5" + self.lua[2] + ".dll"
+            self.lua_file += ".exe"
+            self.luac_file += ".exe"
             self.cflags = "-DLUA_BUILD_AS_DLL"
             self.lflags = "-s"
         else:
@@ -359,43 +383,25 @@ class LuaBuilder(object):
                 bases.append(base)
 
         lib_obj_files = self.compile_bases(lib_bases, verbose)
-        run_command(verbose, self.get_arch_cmd(lib_obj_files, "liblua.a"))
-        run_command(verbose, self.get_index_cmd("liblua.a"))
+        run_command(verbose, self.get_arch_cmd(lib_obj_files, self.arch_file))
+        run_command(verbose, self.get_index_cmd(self.arch_file))
 
         lua_obj_files = self.compile_bases(lua_bases, verbose)
-        run_command(verbose, self.get_link_cmd(lua_obj_files, "liblua.a", "lua"))
+        run_command(verbose, self.get_link_cmd(lua_obj_files, self.arch_file, self.lua_file))
 
         luac_obj_files = self.compile_bases(luac_bases, verbose)
-        run_command(verbose, self.get_link_cmd(luac_obj_files, "liblua.a", "luac"))
+        run_command(verbose, self.get_link_cmd(luac_obj_files, self.arch_file, self.luac_file))
 
-def check_subdir(path, subdir):
-    path = os.path.join(path, subdir)
+    def install(self, target_dir):
+        move_files(check_subdir(target_dir, "bin"), self.lua_file, self.luac_file)
 
-    if not os.path.exists(path):
-        os.mkdir(path)
+        lua_hpp = "lua.hpp"
 
-    return path
+        if not os.path.exists(lua_hpp):
+            lua_hpp = "../etc/lua.hpp"
 
-def move_files(path, *files):
-    for src in files:
-        dst = os.path.join(path, os.path.basename(src))
-
-        # On Windows os.rename will fail if destination exists.
-        if os.path.exists(dst):
-            os.remove(dst)
-
-        os.rename(src, dst)
-
-def install_lua_files(target_dir):
-    move_files(check_subdir(target_dir, "bin"), "lua", "luac")
-
-    lua_hpp = "lua.hpp"
-
-    if not os.path.exists(lua_hpp):
-        lua_hpp = "../etc/lua.hpp"
-
-    move_files(check_subdir(target_dir, "include"), "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
-    move_files(check_subdir(target_dir, "lib"), "liblua.a")
+        move_files(check_subdir(target_dir, "include"), "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+        move_files(check_subdir(target_dir, "lib"), self.arch_file)
 
 def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
     lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, verbose, temp_dir)
@@ -422,7 +428,7 @@ def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
         builder = LuaBuilder(get_lua_target(), nominal_version, compat)
         builder.build(verbose)
         print("Installing Lua")
-        install_lua_files(target_dir)
+        builder.install(target_dir)
 
 def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
     fetch(luarocks_versions, luarocks_version, verbose, temp_dir)
