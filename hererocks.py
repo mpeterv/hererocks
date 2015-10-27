@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import zipfile
 
 try:
     from urllib import urlretrieve
@@ -124,7 +125,7 @@ def cached_archive_name(name, version):
 def capitalize(s):
     return s[0].upper() + s[1:]
 
-def fetch(versions, version, verbose, temp_dir):
+def fetch(versions, version, verbose, temp_dir, targz=True):
     raw_versions, translations, downloads, name, repo = versions
 
     if version in translations:
@@ -135,7 +136,7 @@ def fetch(versions, version, verbose, temp_dir):
             os.makedirs(cache_path)
 
         archive_name = cached_archive_name(name, version)
-        url = downloads + "/" + name + "-" + version + ".tar.gz"
+        url = downloads + "/" + name + "-" + version + (".tar.gz" if targz else "-win32.zip")
         message = "Fetching {} from {}".format(capitalize(name), url)
 
         if not os.path.exists(archive_name):
@@ -144,7 +145,11 @@ def fetch(versions, version, verbose, temp_dir):
         else:
             print(message + " (cached)")
 
-        archive = tarfile.open(archive_name, "r:gz")
+        if targz:
+            archive = tarfile.open(archive_name, "r:gz")
+        else:
+            archive = zipfile.open(archive_name)
+
         archive.extractall(temp_dir)
         archive.close()
         result_dir = os.path.join(temp_dir, name + "-" + version)
@@ -441,14 +446,15 @@ def install_lua(target_dir, lua_version, is_luajit, compat, verbose, temp_dir):
         builder.install(target_dir)
 
 def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
-    fetch(luarocks_versions, luarocks_version, verbose, temp_dir)
+    mingw = get_lua_target() == "mingw"
+    fetch(luarocks_versions, luarocks_version, verbose, temp_dir, not mingw)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
     print("Installing LuaRocks")
 
-    if get_lua_target() == "mingw":
+    if mingw:
         run_command(verbose, "install.bat", "/Q", "/LUA", quote(target_dir),
                     "/P", quote(target_dir), "/SELFCONTAINED", "/FORCECONFIG", "/MW")
     else:
