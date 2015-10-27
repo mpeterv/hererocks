@@ -395,10 +395,12 @@ class LuaBuilder(object):
             self.lflags = "-s"
             run_command(verbose, self.get_arch_cmd(lib_obj_files, self.arch_file))
             run_command(verbose, self.get_index_cmd(self.arch_file))
-            self.arch_file, self.dll_file = orig_arch_file, self.arch_file
 
         lua_obj_files = self.compile_bases(lua_bases, verbose)
         run_command(verbose, self.get_link_cmd(lua_obj_files, self.arch_file, self.lua_file))
+
+        if self.target == "mingw":
+            self.arch_file, self.dll_file = orig_arch_file, self.arch_file
 
     def install(self, target_dir):
         move_files(check_subdir(target_dir, "bin"), self.lua_file, self.luac_file, self.dll_file)
