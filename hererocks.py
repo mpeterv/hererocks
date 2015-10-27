@@ -148,7 +148,7 @@ def fetch(versions, version, verbose, temp_dir, targz=True):
         if targz:
             archive = tarfile.open(archive_name, "r:gz")
         else:
-            archive = zipfile.open(archive_name)
+            archive = zipfile.ZipFile(archive_name)
 
         archive.extractall(temp_dir)
         archive.close()
