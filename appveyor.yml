@@ -14,6 +14,8 @@ platform: x86
 
 install: cinst python
 
+before_build: set PATH=C:\mingw\bin;%PATH%
+
 build_script: python hererocks.py here --lua "%LUA%" --luarocks 2.1.2 --verbose
 
 test_script:
