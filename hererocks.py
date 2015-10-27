@@ -152,7 +152,7 @@ def fetch(versions, version, verbose, temp_dir, targz=True):
 
         archive.extractall(temp_dir)
         archive.close()
-        result_dir = os.path.join(temp_dir, name + "-" + version)
+        result_dir = os.path.join(temp_dir, name + "-" + version + ("" if targz else "-win32"))
         os.chdir(result_dir)
         return result_dir
 
