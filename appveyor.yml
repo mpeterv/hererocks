@@ -16,8 +16,6 @@ install: cinst python
 
 before_build: set PATH=C:\mingw\bin;%PATH%
 
-build_script: python hererocks.py here --lua "%LUA%" --luarocks 2.1.2 --verbose
+build_script: python hererocks.py here --lua "%LUA%" --verbose
 
-test_script:
-  - here\bin\lua -v
-  - here\bin\luarocks --version
+test_script: here\bin\lua -v
