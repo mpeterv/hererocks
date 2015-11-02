@@ -8,7 +8,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/master/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.0.3/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
@@ -68,11 +68,11 @@ Popular continuous integration services such as `Travis-CI <https://travis-ci.or
   sudo: false # Use container-based infrastructure
 
   env:
-    - LUA="lua=5.1"
-    - LUA="lua=5.2"
-    - LUA="lua=5.3"
-    - LUA="luajit=2.0"
-    - LUA="luajit=2.1"
+    - LUA="lua 5.1"
+    - LUA="lua 5.2"
+    - LUA="lua 5.3"
+    - LUA="luajit 2.0"
+    - LUA="luajit 2.1"
 
   before_install:
     - pip install hererocks
