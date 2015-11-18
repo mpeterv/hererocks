@@ -117,7 +117,8 @@ def git_clone_command(repo, ref):
     if all(c in string.hexdigits for c in ref):
         return "git clone"
 
-    return "git clone --depth=1"
+    # --branch works even for tags
+    return "git clone --depth=1 --branch=%s" % (ref or 'master')
 
 def cached_archive_name(name, version):
     return os.path.join(cache_path, name + version)
