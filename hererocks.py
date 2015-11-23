@@ -51,11 +51,8 @@ def get_default_cache():
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
 
-def space_cat(*args):
-    return " ".join(filter(None, args))
-
 def exec_command(capture, *args):
-    command = space_cat(*args)
+    command = " ".join(args)
 
     if opts.verbose:
         print("Running " + command)
