@@ -23,6 +23,8 @@ except ImportError:
 hererocks_version = "Hererocks 0.0.3"
 __all__ = ["main"]
 
+opts = None
+
 platform_to_lua_target = {
     "linux": "linux",
     "win": "mingw",
@@ -50,18 +52,18 @@ def quote(command_arg):
 def space_cat(*args):
     return " ".join(filter(None, args))
 
-def run_command(verbose, *args):
+def run_command(*args):
     command = space_cat(*args)
     runner = subprocess.check_output
 
-    if verbose:
+    if opts.verbose:
         print("Running " + command)
         runner = subprocess.check_call
 
     try:
         runner(command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as exception:
-        if not verbose:
+        if not opts.verbose:
             sys.stdout.write(exception.output)
 
         sys.exit("Error: got exitcode {} from command {}\n".format(
@@ -126,7 +128,7 @@ def cached_archive_name(name, version):
 def capitalize(s):
     return s[0].upper() + s[1:]
 
-def fetch(versions, version, verbose, temp_dir, targz=True):
+def fetch(versions, version, temp_dir, targz=True):
     raw_versions, translations, downloads, name, repo = versions
 
     if version in translations:
@@ -176,11 +178,11 @@ def fetch(versions, version, verbose, temp_dir, targz=True):
 
     result_dir = os.path.join(temp_dir, name)
     print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    run_command(verbose, git_clone_command(repo, ref), quote(repo), quote(result_dir))
+    run_command(git_clone_command(repo, ref), quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
     if ref != "master":
-        run_command(verbose, "git checkout", quote(ref))
+        run_command("git checkout", quote(ref))
 
     return result_dir
 
@@ -250,23 +252,23 @@ def get_luarocks_paths(target_dir, nominal_version):
     return package_path, package_cpath
 
 
-def apply_compat(lua_path, nominal_version, is_luajit, compat):
-    if compat != "default":
-        if is_luajit:
-            if compat in ["all", "5.2"]:
+def apply_compat(lua_path, nominal_version):
+    if opts.compat != "default":
+        if opts.luajit:
+            if opts.compat in ["all", "5.2"]:
                 patch_build_option(lua_path,
                                    "#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
                                    "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
         elif nominal_version == "5.2":
-            if compat in ["none", "5.2"]:
+            if opts.compat in ["none", "5.2"]:
                 patch_build_option(lua_path, " -DLUA_COMPAT_ALL", "")
         elif nominal_version == "5.3":
-            if compat == "none":
+            if opts.compat == "none":
                 patch_build_option(lua_path, " -DLUA_COMPAT_5_2", "")
-            elif compat == "all":
+            elif opts.compat == "all":
                 patch_build_option(lua_path, " -DLUA_COMPAT_5_2",
                                    " -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2")
-            elif compat == "5.1":
+            elif opts.compat == "5.1":
                 patch_build_option(lua_path, " -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
 
 def check_subdir(path, subdir):
@@ -277,44 +279,44 @@ def check_subdir(path, subdir):
 
     return path
 
-def install_lua(target_dir, lua_version, is_luajit, lua_target, compat, verbose, temp_dir):
-    lua_path = fetch(luajit_versions if is_luajit else lua_versions, lua_version, verbose, temp_dir)
+def install_lua(target_dir, lua_version, temp_dir):
+    lua_path = fetch(luajit_versions if opts.luajit else lua_versions, lua_version, temp_dir)
 
-    print("Building " + ("LuaJIT" if is_luajit else "Lua"))
+    print("Building " + ("LuaJIT" if opts.luajit else "Lua"))
     nominal_version = detect_lua_version(lua_path)
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
     patch_default_paths(lua_path, package_path, package_cpath)
-    apply_compat(lua_path, nominal_version, is_luajit, compat)
+    apply_compat(lua_path, nominal_version)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-    if is_luajit:
-        run_command(verbose, "make", "PREFIX=" + quote(target_dir))
+    if opts.luajit:
+        run_command("make", "PREFIX=" + quote(target_dir))
         print("Installing LuaJIT")
-        run_command(verbose, "make install", "PREFIX=" + quote(target_dir),
+        run_command("make install", "PREFIX=" + quote(target_dir),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
                     "INSTALL_INC=" + quote(os.path.join(target_dir, "include")))
 
         if os.path.exists(os.path.join(target_dir, "bin", "luajit_symlink")):
             os.remove(os.path.join(target_dir, "bin", "luajit_symlink"))
     else:
-        run_command(verbose, "make", lua_target)
+        run_command("make", opts.target)
         print("Installing Lua")
-        run_command(verbose, "make install", "INSTALL_TOP=" + quote(target_dir))
+        run_command("make install", "INSTALL_TOP=" + quote(target_dir))
 
-def install_luarocks(target_dir, luarocks_version, verbose, temp_dir):
-    fetch(luarocks_versions, luarocks_version, verbose, temp_dir, os.name != "nt")
+def install_luarocks(target_dir, temp_dir):
+    fetch(luarocks_versions, opts.luarocks, temp_dir, os.name != "nt")
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
     print("Building LuaRocks")
-    run_command(verbose, "./configure", "--prefix=" + quote(target_dir),
+    run_command("./configure", "--prefix=" + quote(target_dir),
                 "--with-lua=" + quote(target_dir), "--force-config")
-    run_command(verbose, "make build")
+    run_command("make build")
     print("Installing LuaRocks")
-    run_command(verbose, "make install")
+    run_command("make install")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -359,24 +361,24 @@ def main():
                         action="version", version=hererocks_version)
     parser.add_argument("-h", "--help", help="Show this help message and exit.", action="help")
 
-    args = parser.parse_args()
-    if not args.lua and not args.luajit and not args.luarocks:
+    global opts
+    opts = parser.parse_args()
+    if not opts.lua and not opts.luajit and not opts.luarocks:
         parser.error("nothing to install")
 
-    if args.lua and args.luajit:
+    if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
-    abs_location = os.path.abspath(args.location)
+    abs_location = os.path.abspath(opts.location)
     start_dir = os.getcwd()
     temp_dir = tempfile.mkdtemp()
 
-    if args.lua or args.luajit:
-        install_lua(abs_location, args.lua or args.luajit, args.luajit,
-                    args.target, args.compat, args.verbose, temp_dir)
+    if opts.lua or opts.luajit:
+        install_lua(abs_location, opts.lua or opts.luajit, temp_dir)
         os.chdir(start_dir)
 
-    if args.luarocks:
-        install_luarocks(abs_location, args.luarocks, args.verbose, temp_dir)
+    if opts.luarocks:
+        install_luarocks(abs_location, temp_dir)
         os.chdir(start_dir)
 
     shutil.rmtree(temp_dir)
