@@ -39,12 +39,14 @@ def get_default_lua_target():
 
     return "posix" if os.name == "posix" else "generic"
 
-if os.name == "nt":
-    cache_root = os.getenv("LOCALAPPDATA") or os.path.join(
-        os.getenv("USERPROFILE"), "Local Settings", "Application Data")
-    cache_path = os.path.join(cache_root, "HereRocks", "Cache")
-else:
-    cache_path = os.path.join(os.getenv("HOME"), ".cache", "hererocks")
+def get_default_cache():
+    if os.name == "nt":
+        cache_root = os.getenv("LOCALAPPDATA") or os.path.join(
+            os.getenv("USERPROFILE"), "Local Settings", "Application Data")
+        return os.path.join(cache_root, "HereRocks", "Cache")
+    else:
+        return os.path.join(os.getenv("HOME"), ".cache", "hererocks")
+
 
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
@@ -52,22 +54,31 @@ def quote(command_arg):
 def space_cat(*args):
     return " ".join(filter(None, args))
 
-def run_command(*args):
+def exec_command(capture, *args):
     command = space_cat(*args)
-    runner = subprocess.check_output
 
     if opts.verbose:
         print("Running " + command)
-        runner = subprocess.check_call
+
+    live_output = opts.verbose and not capture
+    runner = subprocess.check_call if live_output else subprocess.check_output
 
     try:
-        runner(command, stderr=subprocess.STDOUT, shell=True)
+        output = runner(command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as exception:
-        if not opts.verbose:
+        if not live_output:
             sys.stdout.write(exception.output)
 
-        sys.exit("Error: got exitcode {} from command {}\n".format(
+        sys.exit("Error: got exitcode {} from command {}".format(
             exception.returncode, command))
+
+    if opts.verbose and capture:
+        sys.stdout.write(output)
+
+    return output
+
+def run_command(*args):
+    exec_command(False, *args)
 
 lua_versions = ([
     "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
@@ -120,13 +131,19 @@ def git_clone_command(repo, ref):
         return "git clone"
 
     # --branch works even for tags
-    return "git clone --depth=1 --branch=%s" % (ref or 'master')
+    return "git clone --depth=1 --branch=" + quote(ref)
 
 def cached_archive_name(name, version):
-    return os.path.join(cache_path, name + version)
+    return os.path.join(opts.downloads, name + version)
 
 def capitalize(s):
     return s[0].upper() + s[1:]
+
+def url_to_name(s):
+    return re.sub("[^\w-]", "_", s)
+
+def copy_dir(src, dst):
+    shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
 
 def fetch(versions, version, temp_dir, targz=True):
     raw_versions, translations, downloads, name, repo = versions
@@ -135,8 +152,8 @@ def fetch(versions, version, temp_dir, targz=True):
         version = translations[version]
 
     if version in raw_versions:
-        if not os.path.exists(cache_path):
-            os.makedirs(cache_path)
+        if not os.path.exists(opts.downloads):
+            os.makedirs(opts.downloads)
 
         archive_name = cached_archive_name(name, version)
         url = downloads + "/" + name + "-" + version + (".tar.gz" if targz else "-win32.zip")
@@ -157,7 +174,7 @@ def fetch(versions, version, temp_dir, targz=True):
         archive.close()
         result_dir = os.path.join(temp_dir, name + "-" + version + ("" if targz else "-win32"))
         os.chdir(result_dir)
-        return result_dir
+        return result_dir, [name, version]
 
     if version.startswith("@"):
         if not repo:
@@ -172,19 +189,21 @@ def fetch(versions, version, temp_dir, targz=True):
 
         print("Using {} from {}".format(capitalize(name), version))
         result_dir = os.path.join(temp_dir, name)
-        shutil.copytree(version, result_dir, ignore=lambda _, __: {".git"})
+        copy_dir(version, result_dir)
         os.chdir(result_dir)
-        return result_dir
+        return result_dir, None
 
     result_dir = os.path.join(temp_dir, name)
     print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    run_command(git_clone_command(repo, ref), quote(repo), quote(result_dir))
+    clone_command = git_clone_command(repo, ref)
+    run_command(clone_command, quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
-    if ref != "master":
+    if clone_command == "git clone" and ref != "master":
         run_command("git checkout", quote(ref))
 
-    return result_dir
+    commit = exec_command(True, "git rev-parse HEAD").strip()
+    return result_dir, [name, "git", url_to_name(repo), url_to_name(commit)]
 
 lua_version_regexp = re.compile("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$")
 
@@ -279,20 +298,42 @@ def check_subdir(path, subdir):
 
     return path
 
-def install_lua(target_dir, lua_version, temp_dir):
-    lua_path = fetch(luajit_versions if opts.luajit else lua_versions, lua_version, temp_dir)
-
-    print("Building " + ("LuaJIT" if opts.luajit else "Lua"))
-    nominal_version = detect_lua_version(lua_path)
-    package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
-    patch_default_paths(lua_path, package_path, package_cpath)
-    apply_compat(lua_path, nominal_version)
+def build_lua(target_dir, lua_version, temp_dir):
+    lua_path, parts = fetch(luajit_versions if opts.luajit else lua_versions, lua_version, temp_dir)
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
+    message = "Building " + ("LuaJIT" if opts.luajit else "Lua")
+    cached_build_path = None
+
+    if opts.builds and parts is not None:
+        parts.extend(map(url_to_name, [opts.target, opts.compat, target_dir]))
+        cached_build_path = os.path.join(opts.builds, "-".join(parts))
+
+        if os.path.exists(cached_build_path):
+            print(message + " (cached)")
+            os.chdir(cached_build_path)
+            return
+
+    print(message)
+    nominal_version = detect_lua_version(".")
+    package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
+    patch_default_paths(".", package_path, package_cpath)
+    apply_compat(".", nominal_version)
+
     if opts.luajit:
         run_command("make", "PREFIX=" + quote(target_dir))
+    else:
+        run_command("make", opts.target)
+
+    if cached_build_path is not None:
+        copy_dir(".", cached_build_path)
+
+def install_lua(target_dir, lua_version, temp_dir):
+    build_lua(target_dir, lua_version, temp_dir)
+
+    if opts.luajit:
         print("Installing LuaJIT")
         run_command("make install", "PREFIX=" + quote(target_dir),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
@@ -301,7 +342,6 @@ def install_lua(target_dir, lua_version, temp_dir):
         if os.path.exists(os.path.join(target_dir, "bin", "luajit_symlink")):
             os.remove(os.path.join(target_dir, "bin", "luajit_symlink"))
     else:
-        run_command("make", opts.target)
         print("Installing Lua")
         run_command("make install", "INSTALL_TOP=" + quote(target_dir))
 
@@ -354,6 +394,10 @@ def main():
         help="Select compatibility flags for Lua.")
     parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
+    parser.add_argument("--downloads", help="Cache downloads in 'DOWNLOADS' directory.",
+                        default=get_default_cache())
+    parser.add_argument("--builds", help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
+                        default=None)
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Show executed commands and their output.")
     parser.add_argument("-v", "--version", help="Show program's version number and exit.",
@@ -369,6 +413,11 @@ def main():
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
     abs_location = os.path.abspath(opts.location)
+    opts.downloads = os.path.abspath(opts.downloads)
+
+    if opts.builds is not None:
+        opts.builds = os.path.abspath(opts.builds)
+
     start_dir = os.getcwd()
     temp_dir = tempfile.mkdtemp()
 
