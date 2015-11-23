@@ -145,11 +145,12 @@ def url_to_name(s):
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
 
-def fetch(versions, version, temp_dir, targz=True):
-    raw_versions, translations, downloads, name, repo = versions
+def translate(versions, version):
+    return versions[1].get(version, version)
 
-    if version in translations:
-        version = translations[version]
+def fetch(versions, version, temp_dir, targz=True):
+    raw_versions, _, downloads, name, repo = versions
+    version = translate(versions, version)
 
     if version in raw_versions:
         if not os.path.exists(opts.downloads):
@@ -298,25 +299,39 @@ def check_subdir(path, subdir):
 
     return path
 
-def build_lua(target_dir, lua_version, temp_dir):
-    lua_path, parts = fetch(luajit_versions if opts.luajit else lua_versions, lua_version, temp_dir)
-
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
-
-    message = "Building " + ("LuaJIT" if opts.luajit else "Lua")
-    cached_build_path = None
-
+def try_build_cache(target_dir, parts):
     if opts.builds and parts is not None:
         parts.extend(map(url_to_name, [opts.target, opts.compat, target_dir]))
         cached_build_path = os.path.join(opts.builds, "-".join(parts))
 
         if os.path.exists(cached_build_path):
-            print(message + " (cached)")
+            print("Building " + capitalize(parts[0]) + " (cached)")
             os.chdir(cached_build_path)
+            return cached_build_path, True
+        else:
+            return cached_build_path, False
+    else:
+        return None, False
+
+def build_lua(target_dir, lua_version, temp_dir):
+    versions = luajit_versions if opts.luajit else lua_versions
+    lua_version = translate(versions, lua_version)
+    name = versions[3]
+
+    if lua_version in versions[0]:
+        # Simple Lua version. Check build cache before fetching sources.
+        cached_build_path, cached = try_build_cache(target_dir, [name, lua_version])
+
+        if cached:
             return
 
-    print(message)
+    lua_path, parts = fetch(versions, lua_version, temp_dir)
+    cached_build_path, cached = try_build_cache(target_dir, parts)
+
+    if cached:
+        return
+
+    print("Building " + capitalize(name))
     nominal_version = detect_lua_version(".")
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
     patch_default_paths(".", package_path, package_cpath)
@@ -332,6 +347,9 @@ def build_lua(target_dir, lua_version, temp_dir):
 
 def install_lua(target_dir, lua_version, temp_dir):
     build_lua(target_dir, lua_version, temp_dir)
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
 
     if opts.luajit:
         print("Installing LuaJIT")
