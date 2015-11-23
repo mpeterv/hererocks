@@ -350,13 +350,12 @@ def main():
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that LuaRocks 2.1.x does not support Lua 5.3.")
     parser.add_argument(
-        "-c", "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
+        "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
-    parser.add_argument("-t", "--target", help="Use 'make TARGET' when building standard Lua.",
+    parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
-    parser.add_argument(
-        "--verbose", default=False, action="store_true",
-        help="Show executed commands and their output.")
+    parser.add_argument("--verbose", default=False, action="store_true",
+                        help="Show executed commands and their output.")
     parser.add_argument("-v", "--version", help="Show program's version number and exit.",
                         action="version", version=hererocks_version)
     parser.add_argument("-h", "--help", help="Show this help message and exit.", action="help")
