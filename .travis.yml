@@ -22,3 +22,5 @@ script:
   - export PATH=$PATH:$PWD/here/bin
   - lua -v
   - luarocks --version
+  - luarocks make
+  - hererocks-test
