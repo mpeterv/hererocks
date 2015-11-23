@@ -200,7 +200,7 @@ def fetch(versions, version, temp_dir, targz=True):
     if clone_command == "git clone" and ref != "master":
         run_command("git checkout", quote(ref))
 
-    commit = exec_command(True, "git rev-parse HEAD").strip()
+    commit = exec_command(True, "git rev-parse HEAD").strip().decode("utf-8")
     return result_dir, [name, "git", url_to_name(repo), url_to_name(commit)]
 
 lua_version_regexp = re.compile("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$")

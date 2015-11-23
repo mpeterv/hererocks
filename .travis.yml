@@ -1,0 +1,24 @@
+language: c
+sudo: false
+
+cache:
+  directories: cache
+
+matrix:
+  include:
+    - compiler: ": Lua 5.1"
+      env: LUA="lua 5.1"
+    - compiler: ": Lua 5.2"
+      env: LUA="lua 5.2"
+    - compiler: ": Lua 5.3"
+      env: LUA="lua 5.3"
+    - compiler: ": LuaJIT 2.0"
+      env: LUA="luajit 2.0"
+    - compiler: ": LuaJIT 2.1"
+      env: LUA="luajit 2.1"
+
+script:
+  - python hererocks.py here --$LUA -r^ --downloads cache --builds cache
+  - export PATH=$PATH:$PWD/here/bin
+  - lua -v
+  - luarocks --version
