@@ -5,6 +5,7 @@
 from __future__ import print_function
 
 import argparse
+import collections
 import os
 import re
 import shutil
@@ -77,7 +78,9 @@ def exec_command(capture, *args):
 def run_command(*args):
     exec_command(False, *args)
 
-lua_versions = ([
+Versions = collections.namedtuple("Versions", ["name", "downloads", "repo", "versions", "translations"])
+
+lua_versions = Versions("lua", "http://www.lua.org/ftp", "https://github.com/lua/lua", [
     "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
     "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
     "5.3.0", "5.3.1"
@@ -88,18 +91,18 @@ lua_versions = ([
     "5.2": "5.2.4",
     "5.3": "5.3.1",
     "^": "5.3.1"
-}, "http://www.lua.org/ftp", "lua", "https://github.com/lua/lua")
+})
 
-luajit_versions = ([
+luajit_versions = Versions("LuaJIT", "http://luajit.org/download", "https://github.com/luajit/luajit", [
     "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
 ], {
     "2": "2.0.4",
     "2.0": "2.0.4",
     "2.1": "@v2.1",
     "^": "2.0.4"
-}, "http://luajit.org/download", "LuaJIT", "https://github.com/luajit/luajit")
+})
 
-luarocks_versions = ([
+luarocks_versions = Versions("luarocks", "http://keplerproject.github.io/luarocks/releases", "https://github.com/keplerproject/luarocks", [
     "2.1.0", "2.1.1", "2.1.2",
     "2.2.0", "2.2.1", "2.2.2"
 ], {
@@ -108,9 +111,7 @@ luarocks_versions = ([
     "2.2": "2.2.2",
     "3": "@luarocks-3",
     "^": "2.2.2"
-}, "http://keplerproject.github.io/luarocks/releases", "luarocks",
-    "https://github.com/keplerproject/luarocks"
-)
+})
 
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
@@ -162,18 +163,18 @@ def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
 
 def translate(versions, version):
-    return versions[1].get(version, version)
+    return versions.translations.get(version, version)
 
 def fetch(versions, version, temp_dir, targz=True):
-    raw_versions, _, downloads, name, repo = versions
+    name = versions.name
     version = translate(versions, version)
 
-    if version in raw_versions:
+    if version in versions.versions:
         if not os.path.exists(opts.downloads):
             os.makedirs(opts.downloads)
 
         archive_name = cached_archive_name(name, version)
-        url = downloads + "/" + name + "-" + version + (".tar.gz" if targz else "-win32.zip")
+        url = versions.downloads + "/" + name + "-" + version + (".tar.gz" if targz else "-win32.zip")
         message = "Fetching {} from {}".format(capitalize(name), url)
 
         if not os.path.exists(archive_name):
@@ -194,6 +195,7 @@ def fetch(versions, version, temp_dir, targz=True):
         return result_dir, [name, version]
 
     if version.startswith("@"):
+        repo = versions.repo
         ref = version[1:] or "master"
     elif "@" in version:
         repo, _, ref = version.partition("@")
@@ -327,11 +329,10 @@ def try_build_cache(target_dir, parts):
 def build_lua(target_dir, lua_version, temp_dir):
     versions = luajit_versions if opts.luajit else lua_versions
     lua_version = translate(versions, lua_version)
-    name = versions[3]
 
     if lua_version in versions[0]:
         # Simple Lua version. Check build cache before fetching sources.
-        cached_build_path, cached = try_build_cache(target_dir, [name, lua_version])
+        cached_build_path, cached = try_build_cache(target_dir, [versions.name, lua_version])
 
         if cached:
             return
@@ -342,7 +343,7 @@ def build_lua(target_dir, lua_version, temp_dir):
     if cached:
         return
 
-    print("Building " + capitalize(name))
+    print("Building " + capitalize(versions.name))
     nominal_version = detect_lua_version(".")
     package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
     patch_default_paths(".", package_path, package_cpath)
