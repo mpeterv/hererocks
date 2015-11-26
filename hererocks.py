@@ -72,7 +72,7 @@ def exec_command(capture, *args):
     if opts.verbose and capture:
         sys.stdout.write(output)
 
-    return output
+    return capture and output.decode("utf-8")
 
 def run_command(*args):
     exec_command(False, *args)
@@ -117,18 +117,38 @@ clever_http_git_whitelist = [
     "http://bitbucket.com/", "https://bitbucket.com/"
 ]
 
+git_branch_accepts_tags = None
+git_version_regexp = re.compile("(\d+)\.(\d+)\.?(\d*)")
+
+def set_git_branch_accepts_tags():
+    global git_branch_accepts_tags
+
+    if git_branch_accepts_tags is None:
+        version_output = exec_command(True, "git --version")
+        match = git_version_regexp.search(version_output)
+
+        if match:
+            major = int(match.group(1))
+            minor = int(match.group(2))
+            tiny = int(match.group(3) or "0")
+            git_branch_accepts_tags = major > 1 or (major == 1 and (minor > 7 or (minor == 7 and tiny >= 10)))
+
 def git_clone_command(repo, ref):
     # Http(s) transport may be dumb and not understand --depth.
     if repo.startswith("http://") or repo.startswith("https://"):
         if not any(map(repo.startswith, clever_http_git_whitelist)):
-            return "git clone"
+            return "git clone", True
 
     # Have to clone whole repo to get a specific commit.
     if all(c in string.hexdigits for c in ref):
-        return "git clone"
+        return "git clone", True
 
-    # --branch works even for tags
-    return "git clone --depth=1 --branch=" + quote(ref)
+    set_git_branch_accepts_tags()
+
+    if git_branch_accepts_tags:
+        return "git clone --depth=1 --branch=" + quote(ref), False
+    else:
+        return "git clone --depth=1", True
 
 def cached_archive_name(name, version):
     return os.path.join(opts.downloads, name + version)
@@ -193,14 +213,14 @@ def fetch(versions, version, temp_dir, targz=True):
 
     result_dir = os.path.join(temp_dir, name)
     print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    clone_command = git_clone_command(repo, ref)
+    clone_command, need_checkout = git_clone_command(repo, ref)
     run_command(clone_command, quote(repo), quote(result_dir))
     os.chdir(result_dir)
 
-    if clone_command == "git clone" and ref != "master":
+    if need_checkout and ref != "master":
         run_command("git checkout", quote(ref))
 
-    commit = exec_command(True, "git rev-parse HEAD").strip().decode("utf-8")
+    commit = exec_command(True, "git rev-parse HEAD").strip()
     return result_dir, [name, "git", url_to_name(repo), url_to_name(commit)]
 
 lua_version_regexp = re.compile("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$")
