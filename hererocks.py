@@ -169,7 +169,7 @@ def url_to_name(s):
     return re.sub("[^\w-]", "_", s)
 
 def copy_dir(src, dst):
-    shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
+    shutil.copytree(src, dst, ignore=lambda _, __: set([".git"]))
 
 def translate(versions, version):
     return versions.translations.get(version, version)
