@@ -88,7 +88,7 @@ lua_versions = ([
     "5.2": "5.2.4",
     "5.3": "5.3.1",
     "^": "5.3.1"
-}, "http://www.lua.org/ftp", "lua", None)
+}, "http://www.lua.org/ftp", "lua", "https://github.com/lua/lua")
 
 luajit_versions = ([
     "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
@@ -194,9 +194,6 @@ def fetch(versions, version, temp_dir, targz=True):
         return result_dir, [name, version]
 
     if version.startswith("@"):
-        if not repo:
-            sys.exit("Error: no default git repo for standard Lua ")
-
         ref = version[1:] or "master"
     elif "@" in version:
         repo, _, ref = version.partition("@")
