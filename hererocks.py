@@ -118,14 +118,13 @@ clever_http_git_whitelist = [
 ]
 
 git_branch_accepts_tags = None
-git_version_regexp = re.compile("(\d+)\.(\d+)\.?(\d*)")
 
 def set_git_branch_accepts_tags():
     global git_branch_accepts_tags
 
     if git_branch_accepts_tags is None:
         version_output = exec_command(True, "git --version")
-        match = git_version_regexp.search(version_output)
+        match = re.search("(\d+)\.(\d+)\.?(\d*)", version_output)
 
         if match:
             major = int(match.group(1))
@@ -223,13 +222,11 @@ def fetch(versions, version, temp_dir, targz=True):
     commit = exec_command(True, "git rev-parse HEAD").strip()
     return result_dir, [name, "git", url_to_name(repo), url_to_name(commit)]
 
-lua_version_regexp = re.compile("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$")
-
 def detect_lua_version(lua_path):
     lua_h = open(os.path.join(lua_path, "src", "lua.h"))
 
     for line in lua_h:
-        match = lua_version_regexp.match(line)
+        match = re.match("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$", line)
 
         if match:
             return "5." + match.group(1)
