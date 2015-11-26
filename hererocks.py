@@ -78,40 +78,48 @@ def exec_command(capture, *args):
 def run_command(*args):
     exec_command(False, *args)
 
-Versions = collections.namedtuple("Versions", ["name", "downloads", "repo", "versions", "translations"])
+Versions = collections.namedtuple("Versions", [
+                                  "name", "downloads", "repo", "versions", "translations"])
 
-lua_versions = Versions("lua", "http://www.lua.org/ftp", "https://github.com/lua/lua", [
-    "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
-    "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
-    "5.3.0", "5.3.1"
-], {
-    "5": "5.3.1",
-    "5.1": "5.1.5",
-    "5.1.0": "5.1",
-    "5.2": "5.2.4",
-    "5.3": "5.3.1",
-    "^": "5.3.1"
-})
+lua_versions = Versions(
+    "lua", "http://www.lua.org/ftp", "https://github.com/lua/lua", [
+        "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
+        "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
+        "5.3.0", "5.3.1"
+    ], {
+        "5": "5.3.1",
+        "5.1": "5.1.5",
+        "5.1.0": "5.1",
+        "5.2": "5.2.4",
+        "5.3": "5.3.1",
+        "^": "5.3.1"
+    }
+)
 
-luajit_versions = Versions("LuaJIT", "http://luajit.org/download", "https://github.com/luajit/luajit", [
-    "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
-], {
-    "2": "2.0.4",
-    "2.0": "2.0.4",
-    "2.1": "@v2.1",
-    "^": "2.0.4"
-})
+luajit_versions = Versions(
+    "LuaJIT", "http://luajit.org/download", "https://github.com/luajit/luajit", [
+        "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
+    ], {
+        "2": "2.0.4",
+        "2.0": "2.0.4",
+        "2.1": "@v2.1",
+        "^": "2.0.4"
+    }
+)
 
-luarocks_versions = Versions("luarocks", "http://keplerproject.github.io/luarocks/releases", "https://github.com/keplerproject/luarocks", [
-    "2.1.0", "2.1.1", "2.1.2",
-    "2.2.0", "2.2.1", "2.2.2"
-], {
-    "2": "2.2.2",
-    "2.1": "2.1.2",
-    "2.2": "2.2.2",
-    "3": "@luarocks-3",
-    "^": "2.2.2"
-})
+luarocks_versions = Versions(
+    "luarocks", "http://keplerproject.github.io/luarocks/releases",
+    "https://github.com/keplerproject/luarocks", [
+        "2.1.0", "2.1.1", "2.1.2",
+        "2.2.0", "2.2.1", "2.2.2"
+    ], {
+        "2": "2.2.2",
+        "2.1": "2.1.2",
+        "2.2": "2.2.2",
+        "3": "@luarocks-3",
+        "^": "2.2.2"
+    }
+)
 
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
@@ -131,7 +139,8 @@ def set_git_branch_accepts_tags():
             major = int(match.group(1))
             minor = int(match.group(2))
             tiny = int(match.group(3) or "0")
-            git_branch_accepts_tags = major > 1 or (major == 1 and (minor > 7 or (minor == 7 and tiny >= 10)))
+            git_branch_accepts_tags = major > 1 or (
+                major == 1 and (minor > 7 or (minor == 7 and tiny >= 10)))
 
 def git_clone_command(repo, ref):
     # Http(s) transport may be dumb and not understand --depth.
@@ -174,7 +183,8 @@ def fetch(versions, version, temp_dir, targz=True):
             os.makedirs(opts.downloads)
 
         archive_name = cached_archive_name(name, version)
-        url = versions.downloads + "/" + name + "-" + version + (".tar.gz" if targz else "-win32.zip")
+        url = versions.downloads + "/" + name + "-" + version + (
+            ".tar.gz" if targz else "-win32.zip")
         message = "Fetching {} from {}".format(capitalize(name), url)
 
         if not os.path.exists(archive_name):

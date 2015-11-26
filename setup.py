@@ -11,7 +11,7 @@ setuptools.setup(
     name="hererocks",
     version="0.0.3",
     description="Tool for installing Lua and LuaRocks locally",
-    long_description = long_description,
+    long_description=long_description,
     keywords="lua",
     url="https://github.com/mpeterv/hererocks",
     author="Peter Melnichenko",
@@ -31,7 +31,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5"
     ],
-    py_modules = ["hererocks"],
+    py_modules=["hererocks"],
     entry_points={
         "console_scripts": [
             "hererocks=hererocks:main"
