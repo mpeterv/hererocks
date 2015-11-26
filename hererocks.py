@@ -67,7 +67,7 @@ def exec_command(capture, *args):
         if not live_output:
             sys.stdout.write(exception.output)
 
-        sys.exit("Error: got exitcode {} from command {}".format(
+        sys.exit("Error: got exitcode {0} from command {1}".format(
             exception.returncode, command))
 
     if opts.verbose and capture:
@@ -185,7 +185,7 @@ def fetch(versions, version, temp_dir, targz=True):
         archive_name = cached_archive_name(name, version)
         url = versions.downloads + "/" + name + "-" + version + (
             ".tar.gz" if targz else "-win32.zip")
-        message = "Fetching {} from {}".format(capitalize(name), url)
+        message = "Fetching {0} from {1}".format(capitalize(name), url)
 
         if not os.path.exists(archive_name):
             print(message)
@@ -211,16 +211,16 @@ def fetch(versions, version, temp_dir, targz=True):
         repo, _, ref = version.partition("@")
     else:
         if not os.path.exists(version):
-            sys.exit("Error: bad {} version {}".format(capitalize(name), version))
+            sys.exit("Error: bad {0} version {1}".format(capitalize(name), version))
 
-        print("Using {} from {}".format(capitalize(name), version))
+        print("Using {0} from {1}".format(capitalize(name), version))
         result_dir = os.path.join(temp_dir, name)
         copy_dir(version, result_dir)
         os.chdir(result_dir)
         return result_dir, None
 
     result_dir = os.path.join(temp_dir, name)
-    print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
+    print("Cloning {0} from {1} @{2}".format(capitalize(name), repo, ref))
     clone_command, need_checkout = git_clone_command(repo, ref)
     run_command(clone_command, quote(repo), quote(result_dir))
     os.chdir(result_dir)
@@ -252,8 +252,8 @@ def patch_default_paths(lua_path, package_path, package_cpath):
     defines = os.linesep.join([
         "#undef LUA_PATH_DEFAULT",
         "#undef LUA_CPATH_DEFAULT",
-        "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
-        "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath),
+        "#define LUA_PATH_DEFAULT \"{0}\"".format(package_path),
+        "#define LUA_CPATH_DEFAULT \"{0}\"".format(package_cpath),
         "#endif"
     ])
 
