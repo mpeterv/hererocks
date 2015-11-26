@@ -1,6 +1,9 @@
 hererocks
 =========
 
+.. image:: https://travis-ci.org/mpeterv/hererocks.svg?branch=master
+  :target: https://travis-ci.org/mpeterv/hererocks
+
 ``hererocks`` is a single file Python script for installing `Lua <http://http://www.lua.org/>`_ (or `LuaJIT <http://luajit.org/>`_) and `LuaRocks <https://luarocks.org/>`_, its package manager, into a local directory. It configures Lua to only see packages installed by that bundled version of LuaRocks, so that the installation is isolated.
 
 Installation
