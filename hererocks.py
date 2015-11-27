@@ -248,7 +248,7 @@ class Lua(Program):
         super(Lua, self).set_identifiers()
 
         if self.identifiers is not None:
-            self.identifiers.extend(map(url_to_name, [opts.target, opts.compat, opts.location]))
+            self.identifiers.extend(map(url_to_name, [opts.target, self.compat, opts.location]))
 
     def set_package_paths(self):
         local_paths_first = self.major_version == "5.1"
