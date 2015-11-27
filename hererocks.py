@@ -206,21 +206,18 @@ class Program(object):
         else:
             self.identifiers = None
 
-    def new_identifiers(self, installed_identifiers):
+    def update_identifiers(self, all_identifiers):
+        installed_identifiers = all_identifiers.get(self.name)
         self.set_identifiers()
 
         if not opts.ignore_installed:
             if self.identifiers is not None and self.identifiers == installed_identifiers:
-                print("Requested version of {} already installed".format(self.title))
-                return self.identifiers
+                print("Requested {} version already installed".format(self.title))
+                return
 
         self.build()
-
-        if not os.path.exists(opts.location):
-            os.makedirs(opts.location)
-
         self.install()
-        return self.identifiers
+        all_identifiers[self.name] = self.identifiers
 
 class Lua(Program):
     def __init__(self, version):
@@ -450,6 +447,34 @@ class LuaRocks(Program):
         print("Installing LuaRocks")
         run_command("make install")
 
+def get_manifest_name():
+    return os.path.join(opts.location, "hererocks.manifest")
+
+def get_installed_identifiers():
+    if not os.path.exists(get_manifest_name()):
+        return {}
+
+    manifest_h = open(get_manifest_name())
+    identifiers = {}
+
+    for line in manifest_h:
+        cur_identifiers = line.strip().split("-")
+
+        if cur_identifiers:
+            identifiers[cur_identifiers[0]] = cur_identifiers
+
+    return identifiers
+
+def save_installed_identifiers(identifiers):
+    manifest_h = open(get_manifest_name(), "w")
+
+    for program in [RioLua, LuaJIT, LuaRocks]:
+        if identifiers.get(program.name) is not None:
+            manifest_h.write(identifiers_to_string(identifiers[program.name]))
+            manifest_h.write("\n")
+
+    manifest_h.close()
+
 def main():
     parser = argparse.ArgumentParser(
         description=hererocks_version + " a tool for installing Lua and/or LuaRocks locally.",
@@ -481,8 +506,8 @@ def main():
         "a local path can be used. '3' can be used as a version number and installs from "
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that LuaRocks 2.1.x does not support Lua 5.3.")
-    # parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
-    #                     help="Install even if requested version is already present.")
+    parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
+                        help="Install even if requested version is already present.")
     parser.add_argument(
         "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
@@ -508,26 +533,32 @@ def main():
 
     opts.location = os.path.abspath(opts.location)
     opts.downloads = os.path.abspath(opts.downloads)
-    opts.ignore_installed = True
 
     if opts.builds is not None:
         opts.builds = os.path.abspath(opts.builds)
 
     start_dir = os.getcwd()
     temp_dir = tempfile.mkdtemp()
+    identifiers = get_installed_identifiers()
+
+    if not os.path.exists(opts.location):
+        os.makedirs(opts.location)
 
     if opts.lua:
-        RioLua(opts.lua).new_identifiers(None)
+        identifiers["LuaJIT"] = None
+        RioLua(opts.lua).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luajit:
-        LuaJIT(opts.luajit).new_identifiers(None)
+        identifiers["lua"] = None
+        LuaJIT(opts.luajit).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luarocks:
-        LuaRocks(opts.luarocks).new_identifiers(None)
+        LuaRocks(opts.luarocks).update_identifiers(identifiers)
         os.chdir(start_dir)
 
+    save_installed_identifiers(identifiers)
     shutil.rmtree(temp_dir)
     print("Done.")
 
