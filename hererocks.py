@@ -213,11 +213,12 @@ class Program(object):
         if not opts.ignore_installed:
             if self.identifiers is not None and self.identifiers == installed_identifiers:
                 print("Requested {} version already installed".format(self.title))
-                return
+                return False
 
         self.build()
         self.install()
         all_identifiers[self.name] = self.identifiers
+        return True
 
 class Lua(Program):
     def __init__(self, version):
@@ -540,25 +541,30 @@ def main():
     start_dir = os.getcwd()
     temp_dir = tempfile.mkdtemp()
     identifiers = get_installed_identifiers()
+    identifiers_changed = False
 
     if not os.path.exists(opts.location):
         os.makedirs(opts.location)
 
     if opts.lua:
         identifiers["LuaJIT"] = None
-        RioLua(opts.lua).update_identifiers(identifiers)
+        identifiers_changed = RioLua(opts.lua).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luajit:
         identifiers["lua"] = None
-        LuaJIT(opts.luajit).update_identifiers(identifiers)
+        identifiers_changed = LuaJIT(opts.luajit).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luarocks:
-        LuaRocks(opts.luarocks).update_identifiers(identifiers)
+        if LuaRocks(opts.luarocks).update_identifiers(identifiers):
+            identifiers_changed = True
+
         os.chdir(start_dir)
 
-    save_installed_identifiers(identifiers)
+    if identifiers_changed:
+        save_installed_identifiers(identifiers)
+
     shutil.rmtree(temp_dir)
     print("Done.")
 
