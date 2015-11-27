@@ -5,7 +5,6 @@
 from __future__ import print_function
 
 import argparse
-import collections
 import os
 import re
 import shutil
@@ -25,6 +24,7 @@ hererocks_version = "Hererocks 0.0.3"
 __all__ = ["main"]
 
 opts = None
+temp_dir = None
 
 platform_to_lua_target = {
     "linux": "linux",
@@ -78,48 +78,8 @@ def exec_command(capture, *args):
 def run_command(*args):
     exec_command(False, *args)
 
-Versions = collections.namedtuple("Versions", [
-                                  "name", "downloads", "repo", "versions", "translations"])
-
-lua_versions = Versions(
-    "lua", "http://www.lua.org/ftp", "https://github.com/lua/lua", [
-        "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
-        "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
-        "5.3.0", "5.3.1"
-    ], {
-        "5": "5.3.1",
-        "5.1": "5.1.5",
-        "5.1.0": "5.1",
-        "5.2": "5.2.4",
-        "5.3": "5.3.1",
-        "^": "5.3.1"
-    }
-)
-
-luajit_versions = Versions(
-    "LuaJIT", "http://luajit.org/download", "https://github.com/luajit/luajit", [
-        "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
-    ], {
-        "2": "2.0.4",
-        "2.0": "2.0.4",
-        "2.1": "@v2.1",
-        "^": "2.0.4"
-    }
-)
-
-luarocks_versions = Versions(
-    "luarocks", "http://keplerproject.github.io/luarocks/releases",
-    "https://github.com/keplerproject/luarocks", [
-        "2.1.0", "2.1.1", "2.1.2",
-        "2.2.0", "2.2.1", "2.2.2"
-    ], {
-        "2": "2.2.2",
-        "2.1": "2.1.2",
-        "2.2": "2.2.2",
-        "3": "@luarocks-3",
-        "^": "2.2.2"
-    }
-)
+def copy_dir(src, dst):
+    shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
 
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
@@ -159,33 +119,68 @@ def git_clone_command(repo, ref):
     else:
         return "git clone --depth=1", True
 
-def cached_archive_name(name, version):
-    return os.path.join(opts.downloads, name + version)
-
-def capitalize(s):
-    return s[0].upper() + s[1:]
-
 def url_to_name(s):
-    return re.sub("[^\w-]", "_", s)
+    return re.sub("[^\w]", "_", s)
 
-def copy_dir(src, dst):
-    shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
+def identifiers_to_string(identifiers):
+    return "-".join(identifiers)
 
-def translate(versions, version):
-    return versions.translations.get(version, version)
+class Program(object):
+    def __init__(self, version):
+        version = self.translations.get(version, version)
 
-def fetch(versions, version, temp_dir, targz=True):
-    name = versions.name
-    version = translate(versions, version)
+        if version in self.versions:
+            # Simple version.
+            self.source_kind = "fixed"
+            self.fetched = False
+            self.version = version
+        elif "@" in version:
+            # Version from a git repo.
+            self.source_kind = "git"
 
-    if version in versions.versions:
+            if version.startswith("@"):
+                # Use the default git repo for this program.
+                self.repo = self.default_repo
+                ref = version[1:] or "master"
+            else:
+                self.repo, _, ref = version.partition("@")
+
+            # Have to clone the repo to get the commit ref points to.
+            result_dir = os.path.join(temp_dir, self.name)
+            print("Cloning {} from {} @{}".format(self.title, self.repo, ref))
+            clone_command, need_checkout = git_clone_command(self.repo, ref)
+            run_command(clone_command, quote(self.repo), quote(result_dir))
+            os.chdir(result_dir)
+
+            if need_checkout and ref != "master":
+                run_command("git checkout", quote(ref))
+
+            self.fetched = True
+            self.commit = exec_command(True, "git rev-parse HEAD").strip()
+        else:
+            # Local directory.
+            self.source_kind = "local"
+
+            if not os.path.exists(version):
+                sys.exit("Error: bad {} version {}".format(self.title, version))
+
+            print("Using {} from {}".format(self.title, version))
+            result_dir = os.path.join(temp_dir, self.name)
+            copy_dir(version, result_dir)
+            os.chdir(result_dir)
+            self.fetched = True
+
+    def fetch(self):
+        if self.fetched:
+            return
+
         if not os.path.exists(opts.downloads):
             os.makedirs(opts.downloads)
 
-        archive_name = cached_archive_name(name, version)
-        url = versions.downloads + "/" + name + "-" + version + (
-            ".tar.gz" if targz else "-win32.zip")
-        message = "Fetching {} from {}".format(capitalize(name), url)
+        archive_name = os.path.join(opts.downloads, self.name + self.version)
+        download_name = self.name + "-" + self.version + ("-win32" if self.win32_zip else "")
+        url = self.downloads + "/" + download_name + (".zip" if self.win32_zip else ".tar.gz")
+        message = "Fetching {} from {}".format(self.title, url)
 
         if not os.path.exists(archive_name):
             print(message)
@@ -193,210 +188,267 @@ def fetch(versions, version, temp_dir, targz=True):
         else:
             print(message + " (cached)")
 
-        if targz:
-            archive = tarfile.open(archive_name, "r:gz")
-        else:
+        if self.win32_zip:
             archive = zipfile.ZipFile(archive_name)
+        else:
+            archive = tarfile.open(archive_name, "r:gz")
 
         archive.extractall(temp_dir)
         archive.close()
-        result_dir = os.path.join(temp_dir, name + "-" + version + ("" if targz else "-win32"))
-        os.chdir(result_dir)
-        return result_dir, [name, version]
+        os.chdir(os.path.join(temp_dir, download_name))
+        self.fetched = True
 
-    if version.startswith("@"):
-        repo = versions.repo
-        ref = version[1:] or "master"
-    elif "@" in version:
-        repo, _, ref = version.partition("@")
-    else:
-        if not os.path.exists(version):
-            sys.exit("Error: bad {} version {}".format(capitalize(name), version))
-
-        print("Using {} from {}".format(capitalize(name), version))
-        result_dir = os.path.join(temp_dir, name)
-        copy_dir(version, result_dir)
-        os.chdir(result_dir)
-        return result_dir, None
-
-    result_dir = os.path.join(temp_dir, name)
-    print("Cloning {} from {} @{}".format(capitalize(name), repo, ref))
-    clone_command, need_checkout = git_clone_command(repo, ref)
-    run_command(clone_command, quote(repo), quote(result_dir))
-    os.chdir(result_dir)
-
-    if need_checkout and ref != "master":
-        run_command("git checkout", quote(ref))
-
-    commit = exec_command(True, "git rev-parse HEAD").strip()
-    return result_dir, [name, "git", url_to_name(repo), url_to_name(commit)]
-
-def detect_lua_version(lua_path):
-    lua_h = open(os.path.join(lua_path, "src", "lua.h"))
-
-    for line in lua_h:
-        match = re.match("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$", line)
-
-        if match:
-            return "5." + match.group(1)
-
-def patch_default_paths(lua_path, package_path, package_cpath):
-    package_path = package_path.replace("\\", "\\\\")
-    package_cpath = package_cpath.replace("\\", "\\\\")
-
-    luaconf_h = open(os.path.join(lua_path, "src", "luaconf.h"), "rb")
-    luaconf_src = luaconf_h.read()
-    luaconf_h.close()
-
-    body, _, rest = luaconf_src.rpartition(b"#endif")
-    defines = os.linesep.join([
-        "#undef LUA_PATH_DEFAULT",
-        "#undef LUA_CPATH_DEFAULT",
-        "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
-        "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath),
-        "#endif"
-    ])
-
-    luaconf_h = open(os.path.join(lua_path, "src", "luaconf.h"), "wb")
-    luaconf_h.write(body)
-    luaconf_h.write(defines.encode("UTF-8"))
-    luaconf_h.write(rest)
-    luaconf_h.close()
-
-def patch_build_option(lua_path, old, new):
-    makefile = open(os.path.join(lua_path, "src", "Makefile"), "rb")
-    makefile_src = makefile.read()
-    makefile.close()
-    makefile_src = makefile_src.replace(old.encode("UTF-8"), new.encode("UTF-8"), 1)
-    makefile = open(os.path.join(lua_path, "src", "Makefile"), "wb")
-    makefile.write(makefile_src)
-    makefile.close()
-
-def get_luarocks_paths(target_dir, nominal_version):
-    local_paths_first = nominal_version == "5.1"
-
-    module_path = os.path.join(target_dir, "share", "lua", nominal_version)
-    module_path_parts = [
-        os.path.join(module_path, "?.lua"),
-        os.path.join(module_path, "?", "init.lua")
-    ]
-    module_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?.lua"))
-    package_path = ";".join(module_path_parts)
-
-    cmodule_path = os.path.join(target_dir, "lib", "lua", nominal_version)
-    so_extension = ".dll" if os.name == "nt" else ".so"
-    cmodule_path_parts = [
-        os.path.join(cmodule_path, "?" + so_extension),
-        os.path.join(cmodule_path, "loadall" + so_extension)
-    ]
-    cmodule_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?" + so_extension))
-    package_cpath = ";".join(cmodule_path_parts)
-
-    return package_path, package_cpath
-
-
-def apply_compat(lua_path, nominal_version):
-    if opts.compat != "default":
-        if opts.luajit:
-            if opts.compat in ["all", "5.2"]:
-                patch_build_option(lua_path,
-                                   "#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
-                                   "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
-        elif nominal_version == "5.2":
-            if opts.compat in ["none", "5.2"]:
-                patch_build_option(lua_path, " -DLUA_COMPAT_ALL", "")
-        elif nominal_version == "5.3":
-            if opts.compat == "none":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2", "")
-            elif opts.compat == "all":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2",
-                                   " -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2")
-            elif opts.compat == "5.1":
-                patch_build_option(lua_path, " -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
-
-def check_subdir(path, subdir):
-    path = os.path.join(path, subdir)
-
-    if not os.path.exists(path):
-        os.mkdir(path)
-
-    return path
-
-def try_build_cache(target_dir, parts):
-    if opts.builds and parts is not None:
-        parts.extend(map(url_to_name, [opts.target, opts.compat, target_dir]))
-        cached_build_path = os.path.join(opts.builds, "-".join(parts))
-
-        if os.path.exists(cached_build_path):
-            print("Building " + capitalize(parts[0]) + " (cached)")
-            os.chdir(cached_build_path)
-            return cached_build_path, True
+    def set_identifiers(self):
+        if self.source_kind == "fixed":
+            self.identifiers = [self.name, self.version]
+        elif self.source_kind == "git":
+            self.identifiers = [self.name, "git", url_to_name(self.repo), url_to_name(self.commit)]
         else:
-            return cached_build_path, False
-    else:
-        return None, False
+            self.identifiers = None
 
-def build_lua(target_dir, lua_version, temp_dir):
-    versions = luajit_versions if opts.luajit else lua_versions
-    lua_version = translate(versions, lua_version)
+    def new_identifiers(self, installed_identifiers):
+        self.set_identifiers()
 
-    if lua_version in versions[0]:
-        # Simple Lua version. Check build cache before fetching sources.
-        cached_build_path, cached = try_build_cache(target_dir, [versions.name, lua_version])
+        if not opts.ignore_installed:
+            if self.identifiers is not None and self.identifiers == installed_identifiers:
+                print("Requested version of {} already installed".format(self.title))
+                return self.identifiers
 
-        if cached:
-            return
+        self.build()
 
-    lua_path, parts = fetch(versions, lua_version, temp_dir)
-    cached_build_path, cached = try_build_cache(target_dir, parts)
+        if not os.path.exists(opts.location):
+            os.makedirs(opts.location)
 
-    if cached:
-        return
+        self.install()
+        return self.identifiers
 
-    print("Building " + capitalize(versions.name))
-    nominal_version = detect_lua_version(".")
-    package_path, package_cpath = get_luarocks_paths(target_dir, nominal_version)
-    patch_default_paths(".", package_path, package_cpath)
-    apply_compat(".", nominal_version)
+class Lua(Program):
+    def __init__(self, version):
+        super(Lua, self).__init__(version)
 
-    if opts.luajit:
-        run_command("make", "PREFIX=" + quote(target_dir))
-    else:
+        if self.fetched:
+            self.major_version = self.major_version_from_source()
+        else:
+            self.major_version = self.major_version_from_version()
+
+        self.set_compat()
+        self.set_package_paths()
+
+    @staticmethod
+    def major_version_from_source():
+        lua_h = open(os.path.join("src", "lua.h"))
+
+        for line in lua_h:
+            match = re.match("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$", line)
+
+            if match:
+                return "5." + match.group(1)
+
+    def set_identifiers(self):
+        super(Lua, self).set_identifiers()
+
+        if self.identifiers is not None:
+            self.identifiers.extend(map(url_to_name, [opts.target, opts.compat, opts.location]))
+
+    def set_package_paths(self):
+        local_paths_first = self.major_version == "5.1"
+
+        module_path = os.path.join(opts.location, "share", "lua", self.major_version)
+        module_path_parts = [
+            os.path.join(module_path, "?.lua"),
+            os.path.join(module_path, "?", "init.lua")
+        ]
+        module_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?.lua"))
+        self.package_path = ";".join(module_path_parts)
+
+        cmodule_path = os.path.join(opts.location, "lib", "lua", self.major_version)
+        so_extension = ".dll" if os.name == "nt" else ".so"
+        cmodule_path_parts = [
+            os.path.join(cmodule_path, "?" + so_extension),
+            os.path.join(cmodule_path, "loadall" + so_extension)
+        ]
+        cmodule_path_parts.insert(0 if local_paths_first else 2,
+                                  os.path.join(".", "?" + so_extension))
+        self.package_cpath = ";".join(cmodule_path_parts)
+
+    def patch_default_paths(self):
+        package_path = self.package_path.replace("\\", "\\\\")
+        package_cpath = self.package_cpath.replace("\\", "\\\\")
+
+        luaconf_h = open(os.path.join("src", "luaconf.h"), "rb")
+        luaconf_src = luaconf_h.read()
+        luaconf_h.close()
+
+        body, _, rest = luaconf_src.rpartition(b"#endif")
+        defines = os.linesep.join([
+            "#undef LUA_PATH_DEFAULT",
+            "#undef LUA_CPATH_DEFAULT",
+            "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
+            "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath),
+            "#endif"
+        ])
+
+        luaconf_h = open(os.path.join("src", "luaconf.h"), "wb")
+        luaconf_h.write(body)
+        luaconf_h.write(defines.encode("UTF-8"))
+        luaconf_h.write(rest)
+        luaconf_h.close()
+
+    @staticmethod
+    def patch_build_option(old, new):
+        makefile = open(os.path.join("src", "Makefile"), "rb")
+        makefile_src = makefile.read()
+        makefile.close()
+        makefile_src = makefile_src.replace(old.encode("UTF-8"), new.encode("UTF-8"), 1)
+        makefile = open(os.path.join("src", "Makefile"), "wb")
+        makefile.write(makefile_src)
+        makefile.close()
+
+    def build(self):
+        if opts.builds and self.identifiers is not None:
+            self.cached_build_path = os.path.join(opts.builds,
+                                                  identifiers_to_string(self.identifiers))
+
+            if os.path.exists(self.cached_build_path):
+                print("Building " + self.title + " (cached)")
+                os.chdir(self.cached_build_path)
+                return
+        else:
+            self.cached_build_path = None
+
+        self.fetch()
+        print("Building " + self.title)
+        self.patch_default_paths()
+        self.apply_compat()
+        self.make()
+
+        if self.cached_build_path is not None:
+            copy_dir(".", self.cached_build_path)
+
+    def install(self):
+        print("Installing " + self.title)
+        self.make_install()
+
+class RioLua(Lua):
+    name = "lua"
+    title = "Lua"
+    downloads = "http://www.lua.org/ftp"
+    win32_zip = False
+    default_repo = "https://github.com/lua/lua"
+    versions = [
+        "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
+        "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
+        "5.3.0", "5.3.1"
+    ]
+    translations = {
+        "5": "5.3.1",
+        "5.1": "5.1.5",
+        "5.1.0": "5.1",
+        "5.2": "5.2.4",
+        "5.3": "5.3.1",
+        "^": "5.3.1"
+    }
+
+    def major_version_from_version(self):
+        return self.version[:3]
+
+    def set_compat(self):
+        if self.major_version == "5.1":
+            self.compat = "default"
+        elif self.major_version == "5.2":
+            self.compat = "none" if opts.compat in ["none", "5.2"] else "default"
+        else:
+            self.compat = "default" if opts.compat in ["default", "5.2"] else opts.compat
+
+    def apply_compat(self):
+        if self.compat != "default":
+            if self.major_version == "5.2":
+                self.patch_build_option(" -DLUA_COMPAT_ALL", "")
+            elif self.compat == "none":
+                self.patch_build_option(" -DLUA_COMPAT_5_2", "")
+            elif self.compat == "5.1":
+                self.patch_build_option(" -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
+            else:
+                self.patch_build_option(" -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2")
+
+    @staticmethod
+    def make():
         run_command("make", opts.target)
 
-    if cached_build_path is not None:
-        copy_dir(".", cached_build_path)
+    @staticmethod
+    def make_install():
+        run_command("make install", "INSTALL_TOP=" + quote(opts.location))
 
-def install_lua(target_dir, lua_version, temp_dir):
-    build_lua(target_dir, lua_version, temp_dir)
+class LuaJIT(Lua):
+    name = "LuaJIT"
+    title = "LuaJIT"
+    downloads = "http://luajit.org/download"
+    win32_zip = False
+    default_repo = "https://github.com/luajit/luajit"
+    versions = [
+        "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
+    ]
+    translations = {
+        "2": "2.0.4",
+        "2.0": "2.0.4",
+        "2.1": "@v2.1",
+        "^": "2.0.4"
+    }
 
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
+    @staticmethod
+    def major_version_from_version():
+        return "5.1"
 
-    if opts.luajit:
-        print("Installing LuaJIT")
-        run_command("make install", "PREFIX=" + quote(target_dir),
+    def set_compat(self):
+        self.compat = "5.2" if opts.compat in ["all", "5.2"] else "default"
+
+    def apply_compat(self):
+        if self.compat != "default":
+            self.patch_build_option("#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
+                                    "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
+
+    @staticmethod
+    def make():
+        run_command("make", "PREFIX=" + quote(opts.location))
+
+    @staticmethod
+    def make_install():
+        run_command("make install", "PREFIX=" + quote(opts.location),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
-                    "INSTALL_INC=" + quote(os.path.join(target_dir, "include")))
+                    "INSTALL_INC=" + quote(os.path.join(opts.location, "include")))
 
-        if os.path.exists(os.path.join(target_dir, "bin", "luajit_symlink")):
-            os.remove(os.path.join(target_dir, "bin", "luajit_symlink"))
-    else:
-        print("Installing Lua")
-        run_command("make install", "INSTALL_TOP=" + quote(target_dir))
+        if os.path.exists(os.path.join(opts.location, "bin", "luajit_symlink")):
+            os.remove(os.path.join(opts.location, "bin", "luajit_symlink"))
 
-def install_luarocks(target_dir, temp_dir):
-    fetch(luarocks_versions, opts.luarocks, temp_dir, os.name != "nt")
+class LuaRocks(Program):
+    name = "luarocks"
+    title = "LuaRocks"
+    downloads = "http://keplerproject.github.io/luarocks/releases"
+    win32_zip = os.name == "nt"
+    default_repo = "https://github.com/keplerproject/luarocks"
+    versions = [
+        "2.1.0", "2.1.1", "2.1.2",
+        "2.2.0", "2.2.1", "2.2.2"
+    ]
+    translations = {
+        "2": "2.2.2",
+        "2.1": "2.1.2",
+        "2.2": "2.2.2",
+        "3": "@luarocks-3",
+        "^": "2.2.2"
+    }
 
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
+    def build(self):
+        self.fetch()
+        print("Building LuaRocks")
+        run_command("./configure", "--prefix=" + quote(opts.location),
+                    "--with-lua=" + quote(opts.location), "--force-config")
+        run_command("make build")
 
-    print("Building LuaRocks")
-    run_command("./configure", "--prefix=" + quote(target_dir),
-                "--with-lua=" + quote(target_dir), "--force-config")
-    run_command("make build")
-    print("Installing LuaRocks")
-    run_command("make install")
+    @staticmethod
+    def install():
+        print("Installing LuaRocks")
+        run_command("make install")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -429,6 +481,8 @@ def main():
         "a local path can be used. '3' can be used as a version number and installs from "
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that LuaRocks 2.1.x does not support Lua 5.3.")
+    # parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
+    #                     help="Install even if requested version is already present.")
     parser.add_argument(
         "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
@@ -444,7 +498,7 @@ def main():
                         action="version", version=hererocks_version)
     parser.add_argument("-h", "--help", help="Show this help message and exit.", action="help")
 
-    global opts
+    global opts, temp_dir
     opts = parser.parse_args()
     if not opts.lua and not opts.luajit and not opts.luarocks:
         parser.error("nothing to install")
@@ -452,8 +506,9 @@ def main():
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
-    abs_location = os.path.abspath(opts.location)
+    opts.location = os.path.abspath(opts.location)
     opts.downloads = os.path.abspath(opts.downloads)
+    opts.ignore_installed = True
 
     if opts.builds is not None:
         opts.builds = os.path.abspath(opts.builds)
@@ -461,12 +516,16 @@ def main():
     start_dir = os.getcwd()
     temp_dir = tempfile.mkdtemp()
 
-    if opts.lua or opts.luajit:
-        install_lua(abs_location, opts.lua or opts.luajit, temp_dir)
+    if opts.lua:
+        RioLua(opts.lua).new_identifiers(None)
+        os.chdir(start_dir)
+
+    if opts.luajit:
+        LuaJIT(opts.luajit).new_identifiers(None)
         os.chdir(start_dir)
 
     if opts.luarocks:
-        install_luarocks(abs_location, temp_dir)
+        LuaRocks(opts.luarocks).new_identifiers(None)
         os.chdir(start_dir)
 
     shutil.rmtree(temp_dir)
