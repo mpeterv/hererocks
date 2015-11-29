@@ -514,9 +514,13 @@ def main():
         help="Select compatibility flags for Lua.")
     parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
-    parser.add_argument("--downloads", help="Cache downloads in 'DOWNLOADS' directory.",
+    parser.add_argument("--downloads",
+                        # help="Cache downloads in 'DOWNLOADS' directory.",
+                        help=argparse.SUPPRESS,
                         default=get_default_cache())
-    parser.add_argument("--builds", help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
+    parser.add_argument("--builds",
+                        # help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
+                        help=argparse.SUPPRESS,
                         default=None)
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Show executed commands and their output.")
