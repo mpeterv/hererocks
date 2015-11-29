@@ -20,7 +20,7 @@ try:
 except ImportError:
     from urllib.request import urlretrieve
 
-hererocks_version = "Hererocks 0.0.3"
+hererocks_version = "Hererocks 0.1.0"
 __all__ = ["main"]
 
 opts = None
