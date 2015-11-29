@@ -484,8 +484,8 @@ def main():
         "location", help="Path to directory in which Lua and/or LuaRocks will be installed. "
         "Their binaries will be found in its 'bin' subdirectory. "
         "Scripts from modules installed using LuaRocks will also turn up there. "
-        "If an incompatible version of Lua is already installed there it should be"
-        "removed before installing the new one.")
+        "If an incompatible version of Lua is already installed there it should be "
+        "removed before installing the new one. ")
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
@@ -494,16 +494,18 @@ def main():
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
         "to checkout, 'master' by default. "
+        "Default git repo is https://github.com/lua/lua which contains tags for most "
+        "unstable versions, i.e. Lua 5.3.2-rc1 can be installed using '@5.3.2-rc1' as version. "
         "The argument can also be a path to local directory.")
     parser.add_argument(
         "-j", "--luajit", help="Version of LuaJIT to install. "
-        "Version can be specified in the same way as for standard Lua."
+        "Version can be specified in the same way as for standard Lua. "
         "Versions 2.0.0 - 2.1 are supported. "
         "When installing from the LuaJIT main git repo its URI can be left out, "
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
-        "As with Lua, a version number (in range 2.1.0 - 2.2.2), git URI with reference or "
+        "As with Lua, a version number (in range 2.1.0 - 2.2.2), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that LuaRocks 2.1.x does not support Lua 5.3.")
