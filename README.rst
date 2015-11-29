@@ -11,7 +11,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.0.3/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.1.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
@@ -21,7 +21,7 @@ Installation location
 
 The first argument of ``hererocks`` command should be path to the directory where Lua and/or LuaRocks should be installed. If it does not exist, it will be created.
 
-If installation directory already has Lua installed, a new version of Lua or LuaRocks can be installed over it as a seamless upgrade (packages installed with LuaRocks will keep working) provided new and old Lua minor versions are same. E.g. Lua 5.1.5 and LuaJIT 2.1 can be installed over Lua 5.1.1, but not over Lua 5.2.1. Otherwise, when installing an incompatible Lua version, the installation directory should be removed prior to running ``hererocks``.
+If installation directory already has Lua installed, a new version of Lua or LuaRocks can be installed over it as a seamless upgrade (packages installed with LuaRocks will keep working) provided new and old Lua minor versions are same. E.g. Lua 5.1.5 and LuaJIT 2.1 can be installed over Lua 5.1.1, but not over Lua 5.2.1. Otherwise, when installing an incompatible Lua version, the installation directory should be removed prior to running ``hererocks``. If ``hererocks`` detects that it has already installed requested version of Lua or LuaRocks into the directory, it will skip installation for that program, unless ``--ignore-installed/-i`` is used.
 
 After installation Lua and LuaRocks binaries will be in the ``bin`` subdirectory of the installation directory. Scripts installed using LuaRocks will also turn up there. Lua binary is always named ``lua``, even if it's LuaJIT under the hood, and LuaRocks binary is named ``luarocks`` as usual.
 
@@ -31,13 +31,13 @@ Version selection
 ``--lua/-l``, ``--luajit/-j`` and ``--luarocks/-r`` options should be used to select versions of programs to install. There are three ways to specify how to fetch the sources:
 
 * Using version number, such as ``5.1.5``. If patch or minor versions are left out the latest possible version will be used, e.g. for Lua ``5.2`` is currently equivalent to ``5.2.4``. ``^`` can be used to select the latest stable version. ``hererocks`` will fetch and unpack sources of the selected version from corresponding official downloads location.
-* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and for LuaJIT and LuaRocks there is also default git URI. For instance, ``--luajit @458a40b`` installs from a commit at the official LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
+* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for `Lua <https://github.com/lua/lua>`_, `LuaJIT <https://github.com/luajit/luajit>`_ and `LuaRocks <https://github.com/keplerproject/luarocks>`_. For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
 * Using path to a local directory.
 
 Compatibility flags
 ^^^^^^^^^^^^^^^^^^^
 
-Lua and LuaJIT have some flags that add compatibility with other Lua versions. Lua 5.2 has 5.1 compatibility flag (on by default), Lua 5.3 - both 5.1 and 5.2 compatibility flags (only 5.2 compatibility is on by default), and LuaJIT has 5.2 flag (off by default). ``hererocks`` can change these flags before building when using ``--compat/-c`` option. Possible arguments are ``default``, ``none``, ``all``, ``5.1`` and ``5.2``.
+Lua and LuaJIT have some flags that add compatibility with other Lua versions. Lua 5.2 has 5.1 compatibility flag (on by default), Lua 5.3 - both 5.1 and 5.2 compatibility flags (only 5.2 compatibility is on by default), and LuaJIT has 5.2 flag (off by default). ``hererocks`` can change these flags before building when using ``--compat`` option. Possible arguments are ``default``, ``none``, ``all``, ``5.1`` and ``5.2``.
 
 Installing standard PUC-Rio Lua
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -46,7 +46,7 @@ Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.1.
 
 Use ``5.1.0`` to install Lua ``5.1`` which was released without patch version for some reason.
 
-When building Lua, ``hererocks`` tries to use sensible ``make`` target. The default can be seen in the help message printed by ``hererocks --help``. To select another target, use ``--target/-t`` option.
+When building Lua, ``hererocks`` tries to use sensible ``make`` target. The default can be seen in the help message printed by ``hererocks --help``. To select another target, use ``--target`` option.
 
 Installing LuaJIT
 ^^^^^^^^^^^^^^^^^
