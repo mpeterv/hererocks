@@ -11,7 +11,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.1.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.2.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
@@ -31,7 +31,7 @@ Version selection
 ``--lua/-l``, ``--luajit/-j`` and ``--luarocks/-r`` options should be used to select versions of programs to install. There are three ways to specify how to fetch the sources:
 
 * Using version number, such as ``5.1.5``. If patch or minor versions are left out the latest possible version will be used, e.g. for Lua ``5.2`` is currently equivalent to ``5.2.4``. ``^`` can be used to select the latest stable version. ``hererocks`` will fetch and unpack sources of the selected version from corresponding official downloads location.
-* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for `Lua <https://github.com/lua/lua>`_, `LuaJIT <https://github.com/luajit/luajit>`_ and `LuaRocks <https://github.com/keplerproject/luarocks>`_. For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
+* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for Lua (https://github.com/lua/lua), LuaJIT (https://github.com/luajit/luajit) and LuaRocks (https://github.com/keplerproject/luarocks). For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
 * Using path to a local directory.
 
 Compatibility flags
@@ -42,7 +42,7 @@ Lua and LuaJIT have some flags that add compatibility with other Lua versions. L
 Installing standard PUC-Rio Lua
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.1.
+Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.2.
 
 Use ``5.1.0`` to install Lua ``5.1`` which was released without patch version for some reason.
 
