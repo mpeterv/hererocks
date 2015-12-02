@@ -134,6 +134,7 @@ class Program(object):
             self.source_kind = "fixed"
             self.fetched = False
             self.version = version
+            self.version_suffix = " " + version
         elif "@" in version:
             # Version from a git repo.
             self.source_kind = "git"
@@ -157,6 +158,7 @@ class Program(object):
 
             self.fetched = True
             self.commit = exec_command(True, "git rev-parse HEAD").strip()
+            self.version_suffix = " @" + self.commit[:7]
         else:
             # Local directory.
             self.source_kind = "local"
@@ -169,6 +171,7 @@ class Program(object):
             copy_dir(version, result_dir)
             os.chdir(result_dir)
             self.fetched = True
+            self.version_suffix = ""
 
     def fetch(self):
         if self.fetched:
@@ -212,7 +215,7 @@ class Program(object):
 
         if not opts.ignore_installed:
             if self.identifiers is not None and self.identifiers == installed_identifiers:
-                print("Requested {} version already installed".format(self.title))
+                print(self.title + self.version_suffix + " already installed")
                 return False
 
         self.build()
@@ -229,7 +232,14 @@ class Lua(Program):
         else:
             self.major_version = self.major_version_from_version()
 
+        if not self.version_suffix:
+            self.version_suffix = " " + self.major_version
+
         self.set_compat()
+
+        if self.compat != "default":
+            self.version_suffix += " (compat: {})".format(self.compat)
+
         self.set_package_paths()
 
     @staticmethod
@@ -308,14 +318,14 @@ class Lua(Program):
                                                   identifiers_to_string(self.identifiers))
 
             if os.path.exists(self.cached_build_path):
-                print("Building " + self.title + " (cached)")
+                print("Building " + self.title + self.version_suffix + " (cached)")
                 os.chdir(self.cached_build_path)
                 return
         else:
             self.cached_build_path = None
 
         self.fetch()
-        print("Building " + self.title)
+        print("Building " + self.title + self.version_suffix)
         self.patch_default_paths()
         self.apply_compat()
         self.make()
@@ -324,7 +334,7 @@ class Lua(Program):
             copy_dir(".", self.cached_build_path)
 
     def install(self):
-        print("Installing " + self.title)
+        print("Installing " + self.title + self.version_suffix)
         self.make_install()
 
 class RioLua(Lua):
@@ -438,14 +448,13 @@ class LuaRocks(Program):
 
     def build(self):
         self.fetch()
-        print("Building LuaRocks")
+        print("Building LuaRocks" + self.version_suffix)
         run_command("./configure", "--prefix=" + quote(opts.location),
                     "--with-lua=" + quote(opts.location), "--force-config")
         run_command("make build")
 
-    @staticmethod
-    def install():
-        print("Installing LuaRocks")
+    def install(self):
+        print("Installing LuaRocks" + self.version_suffix)
         run_command("make install")
 
 def get_manifest_name():
