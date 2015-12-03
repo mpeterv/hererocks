@@ -374,8 +374,9 @@ class RioLua(Lua):
             if self.major_version == "5.1":
                 if self.compat == "none":
                     self.extra_defines.extend([
-                        "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD", "#undef LUA_COMPAT_LSTR",
-                        "#undef LUA_COMPAT_GFIND", "#undef LUA_COMPAT_OPENLIB"
+                        "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD",
+                        "#undef LUA_COMPAT_LSTR", "#undef LUA_COMPAT_GFIND",
+                        "#undef LUA_COMPAT_OPENLIB"
                     ])
             elif self.major_version == "5.2":
                 self.patch_build_option(" -DLUA_COMPAT_ALL", "")
