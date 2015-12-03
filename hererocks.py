@@ -498,7 +498,7 @@ def main():
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
-        "Versions 5.1.0 - 5.3.1 are supported, "
+        "Versions 5.1.0 - 5.3.2 are supported, "
         "'^' can be used to install the latest stable version. "
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
