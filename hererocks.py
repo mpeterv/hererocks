@@ -288,7 +288,7 @@ class Lua(Program):
         luaconf_h.close()
 
         body, _, rest = luaconf_src.rpartition(b"#endif")
-        defines = os.linesep.join([
+        defines = os.linesep.join(self.extra_defines + [
             "#undef LUA_PATH_DEFAULT",
             "#undef LUA_CPATH_DEFAULT",
             "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
@@ -326,8 +326,9 @@ class Lua(Program):
 
         self.fetch()
         print("Building " + self.title + self.version_suffix)
-        self.patch_default_paths()
+        self.extra_defines = []
         self.apply_compat()
+        self.patch_default_paths()
         self.make()
 
         if self.cached_build_path is not None:
@@ -362,7 +363,7 @@ class RioLua(Lua):
 
     def set_compat(self):
         if self.major_version == "5.1":
-            self.compat = "default"
+            self.compat = "none" if opts.compat == "none" else "default"
         elif self.major_version == "5.2":
             self.compat = "none" if opts.compat in ["none", "5.2"] else "default"
         else:
@@ -370,7 +371,13 @@ class RioLua(Lua):
 
     def apply_compat(self):
         if self.compat != "default":
-            if self.major_version == "5.2":
+            if self.major_version == "5.1":
+                if self.compat == "none":
+                    self.extra_defines.extend([
+                        "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD", "#undef LUA_COMPAT_LSTR",
+                        "#undef LUA_COMPAT_GFIND", "#undef LUA_COMPAT_OPENLIB"
+                    ])
+            elif self.major_version == "5.2":
                 self.patch_build_option(" -DLUA_COMPAT_ALL", "")
             elif self.compat == "none":
                 self.patch_build_option(" -DLUA_COMPAT_5_2", "")
