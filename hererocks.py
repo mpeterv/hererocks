@@ -443,23 +443,37 @@ class LuaRocks(Program):
     win32_zip = os.name == "nt"
     default_repo = "https://github.com/keplerproject/luarocks"
     versions = [
+        "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12",
         "2.1.0", "2.1.1", "2.1.2",
         "2.2.0", "2.2.1", "2.2.2"
     ]
     translations = {
         "2": "2.2.2",
+        "2.0": "2.0.12",
         "2.1": "2.1.2",
         "2.2": "2.2.2",
         "3": "@luarocks-3",
         "^": "2.2.2"
     }
 
+    def is_luarocks_2_0(self):
+        if self.source_kind == "fixed":
+            return self.versions.index(self.version) < self.versions.index("2.1.0")
+
+        makefile = open("Makefile")
+
+        for line in makefile:
+            if re.match("^\\s*all:\\s+built\\s*$", line):
+                return True
+
+        return False
+
     def build(self):
         self.fetch()
         print("Building LuaRocks" + self.version_suffix)
         run_command("./configure", "--prefix=" + quote(opts.location),
                     "--with-lua=" + quote(opts.location), "--force-config")
-        run_command("make build")
+        run_command("make" if self.is_luarocks_2_0() else "make build")
 
     def install(self):
         print("Installing LuaRocks" + self.version_suffix)
@@ -522,10 +536,11 @@ def main():
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
-        "As with Lua, a version number (in range 2.1.0 - 2.2.2), '^', git URI with reference or "
+        "As with Lua, a version number (in range 2.0.8 - 2.2.2), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
-        "Note that LuaRocks 2.1.x does not support Lua 5.3.")
+        "Note that Lua 5.2 is not supported in LuaRocks 2.0.8 "
+        "and Lua 5.3 is supported only since LuaRocks 2.2.0.")
     parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
                         help="Install even if requested version is already present.")
     parser.add_argument(
