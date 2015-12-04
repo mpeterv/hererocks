@@ -73,7 +73,7 @@ def exec_command(capture, *args):
     if opts.verbose and capture:
         sys.stdout.write(output)
 
-    return capture and output.decode("utf-8")
+    return capture and output.decode("UTF-8")
 
 def run_command(*args):
     exec_command(False, *args)
@@ -240,7 +240,11 @@ class Lua(Program):
         if self.compat != "default":
             self.version_suffix += " (compat: {})".format(self.compat)
 
+        self.defines = []
+        self.redefines = []
+        self.add_compat_to_defines()
         self.set_package_paths()
+        self.add_package_paths_to_defines()
 
     @staticmethod
     def major_version_from_source():
@@ -279,38 +283,37 @@ class Lua(Program):
                                   os.path.join(".", "?" + so_extension))
         self.package_cpath = ";".join(cmodule_path_parts)
 
-    def patch_default_paths(self):
+    def add_package_paths_to_defines(self):
         package_path = self.package_path.replace("\\", "\\\\")
         package_cpath = self.package_cpath.replace("\\", "\\\\")
+        self.redefines.extend([
+            "#undef LUA_PATH_DEFAULT",
+            "#undef LUA_CPATH_DEFAULT",
+            "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
+            "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath)
+        ])
+
+    def patch_defines(self):
+        defines = os.linesep.join(self.defines)
+        redefines = os.linesep.join(self.redefines)
+        linesep = os.linesep.encode("UTF-8")
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "rb")
         luaconf_src = luaconf_h.read()
         luaconf_h.close()
 
-        body, _, rest = luaconf_src.rpartition(b"#endif")
-        defines = os.linesep.join(self.extra_defines + [
-            "#undef LUA_PATH_DEFAULT",
-            "#undef LUA_CPATH_DEFAULT",
-            "#define LUA_PATH_DEFAULT \"{}\"".format(package_path),
-            "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath),
-            "#endif"
-        ])
+        body, _, tail = luaconf_src.rpartition(b"#endif")
+        header, _, main = body.partition(b"#define")
+        first_define, main = main.split(linesep, 1)
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "wb")
-        luaconf_h.write(body)
-        luaconf_h.write(defines.encode("UTF-8"))
-        luaconf_h.write(rest)
+        luaconf_h.write(header + b"#define" + first_define + linesep)
+        luaconf_h.write(defines.encode("UTF-8") + linesep)
+        luaconf_h.write(main)
+        luaconf_h.write(redefines.encode("UTF-8") + linesep)
+        luaconf_h.write(b"#endif")
+        luaconf_h.write(tail)
         luaconf_h.close()
-
-    @staticmethod
-    def patch_build_option(old, new):
-        makefile = open(os.path.join("src", "Makefile"), "rb")
-        makefile_src = makefile.read()
-        makefile.close()
-        makefile_src = makefile_src.replace(old.encode("UTF-8"), new.encode("UTF-8"), 1)
-        makefile = open(os.path.join("src", "Makefile"), "wb")
-        makefile.write(makefile_src)
-        makefile.close()
 
     def build(self):
         if opts.builds and self.identifiers is not None:
@@ -326,9 +329,7 @@ class Lua(Program):
 
         self.fetch()
         print("Building " + self.title + self.version_suffix)
-        self.extra_defines = []
-        self.apply_compat()
-        self.patch_default_paths()
+        self.patch_defines()
         self.make()
 
         if self.cached_build_path is not None:
@@ -369,23 +370,24 @@ class RioLua(Lua):
         else:
             self.compat = "default" if opts.compat in ["default", "5.2"] else opts.compat
 
-    def apply_compat(self):
+    def add_compat_to_defines(self):
         if self.compat != "default":
             if self.major_version == "5.1":
                 if self.compat == "none":
-                    self.extra_defines.extend([
+                    self.redefines.extend([
                         "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD",
                         "#undef LUA_COMPAT_LSTR", "#undef LUA_COMPAT_GFIND",
                         "#undef LUA_COMPAT_OPENLIB"
                     ])
             elif self.major_version == "5.2":
-                self.patch_build_option(" -DLUA_COMPAT_ALL", "")
+                self.defines.append("#undef LUA_COMPAT_ALL")
             elif self.compat == "none":
-                self.patch_build_option(" -DLUA_COMPAT_5_2", "")
+                self.defines.append("#undef LUA_COMPAT_5_2")
             elif self.compat == "5.1":
-                self.patch_build_option(" -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1")
+                self.defines.append("#undef LUA_COMPAT_5_2")
+                self.defines.append("#define LUA_COMPAT_5_1")
             else:
-                self.patch_build_option(" -DLUA_COMPAT_5_2", " -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2")
+                self.defines.append("#define LUA_COMPAT_5_1")
 
     @staticmethod
     def make():
@@ -418,10 +420,9 @@ class LuaJIT(Lua):
     def set_compat(self):
         self.compat = "5.2" if opts.compat in ["all", "5.2"] else "default"
 
-    def apply_compat(self):
+    def add_compat_to_defines(self):
         if self.compat != "default":
-            self.patch_build_option("#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT",
-                                    "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
+            self.defines.append("#define LUAJIT_ENABLE_LUA52COMPAT")
 
     @staticmethod
     def make():
