@@ -278,7 +278,8 @@ class Lua(Program):
             options.append(("apicheck", "true"))
 
         if options:
-            self.version_suffix += " (" + (", ".join(opt + ": " + value for opt, value in options)) + ")"
+            self.version_suffix += " (" + (", ".join(
+                opt + ": " + value for opt, value in options)) + ")"
 
     def set_package_paths(self):
         local_paths_first = self.major_version == "5.1"
