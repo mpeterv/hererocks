@@ -447,10 +447,11 @@ class LuaJIT(Lua):
     def make():
         run_command("make", "PREFIX=" + quote(opts.location))
 
-    @staticmethod
-    def make_install():
+    def make_install(self):
         run_command("make install", "PREFIX=" + quote(opts.location),
                     "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
+                    "INSTALL_LJLIBD=" + quote(os.path.join(
+                        opts.location, "share", "lua", self.major_version)),
                     "INSTALL_INC=" + quote(os.path.join(opts.location, "include")))
 
         if os.path.exists(os.path.join(opts.location, "bin", "luajit_symlink")):
