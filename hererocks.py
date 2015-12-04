@@ -75,10 +75,9 @@ def exec_command(capture, *args):
             exception.returncode, command))
 
     if opts.verbose and capture:
-        output = output.decode("UTF-8")
-        sys.stdout.write(output)
+        sys.stdout.write(output.decode("UTF-8"))
 
-    return capture and output
+    return capture and output.decode("UTF-8")
 
 def run_command(*args):
     exec_command(False, *args)
