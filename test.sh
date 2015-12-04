@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ev
 export PATH="$PWD/test/here/bin:$PATH"
-HEREROCKS="python hererocks.py test/here --downloads=test/cache"
+HEREROCKS="python hererocks.py test/here --downloads=test/cache --no-git-cache"
 
 rm test/here -rf
 $HEREROCKS -l^ -r^

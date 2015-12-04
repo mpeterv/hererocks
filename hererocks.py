@@ -175,7 +175,7 @@ class Program(object):
     def fetch_repo(self, ref):
         message = "Cloning {} from {} @{}".format(self.title, self.repo, ref)
 
-        if self.repo == self.default_repo:
+        if self.repo == self.default_repo and not opts.no_git_cache:
             # Default repos are cached.
             if not os.path.exists(opts.downloads):
                 os.makedirs(opts.downloads)
@@ -618,12 +618,13 @@ def main():
                         default=get_default_lua_target())
     parser.add_argument("--downloads",
                         # help="Cache downloads in 'DOWNLOADS' directory.",
-                        help=argparse.SUPPRESS,
-                        default=get_default_cache())
+                        help=argparse.SUPPRESS, default=get_default_cache())
+    parser.add_argument("--no-git-cache",
+                        # help="Do not cache default git repos.",
+                        help=argparse.SUPPRESS, action="store_true", default=False)
     parser.add_argument("--builds",
                         # help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
-                        help=argparse.SUPPRESS,
-                        default=None)
+                        help=argparse.SUPPRESS, default=None)
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Show executed commands and their output.")
     parser.add_argument("-v", "--version", help="Show program's version number and exit.",
