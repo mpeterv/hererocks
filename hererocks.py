@@ -236,9 +236,7 @@ class Lua(Program):
             self.version_suffix = " " + self.major_version
 
         self.set_compat()
-
-        if self.compat != "default":
-            self.version_suffix += " (compat: {})".format(self.compat)
+        self.add_options_to_version_suffix()
 
         self.defines = []
         self.redefines = []
@@ -266,6 +264,21 @@ class Lua(Program):
             self.identifiers.extend(map(url_to_name, [
                 opts.target, self.compat, str(opts.apicheck), opts.location
             ]))
+
+    def add_options_to_version_suffix(self):
+        options = []
+
+        if opts.target != get_default_lua_target():
+            options.append(("target", opts.target))
+
+        if self.compat != "default":
+            options.append(("compat", self.compat))
+
+        if opts.apicheck:
+            options.append(("apicheck", "true"))
+
+        if options:
+            self.version_suffix += " (" + (", ".join(opt + ": " + value for opt, value in options)) + ")"
 
     def set_package_paths(self):
         local_paths_first = self.major_version == "5.1"
