@@ -246,6 +246,9 @@ class Lua(Program):
         self.set_package_paths()
         self.add_package_paths_to_defines()
 
+        if opts.apicheck:
+            self.defines.append("#define LUA_USE_APICHECK")
+
     @staticmethod
     def major_version_from_source():
         lua_h = open(os.path.join("src", "lua.h"))
@@ -260,7 +263,9 @@ class Lua(Program):
         super(Lua, self).set_identifiers()
 
         if self.identifiers is not None:
-            self.identifiers.extend(map(url_to_name, [opts.target, self.compat, opts.location]))
+            self.identifiers.extend(map(url_to_name, [
+                opts.target, self.compat, str(opts.apicheck), opts.location
+            ]))
 
     def set_package_paths(self):
         local_paths_first = self.major_version == "5.1"
@@ -547,6 +552,9 @@ def main():
     parser.add_argument(
         "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
+    parser.add_argument(
+        "--apicheck", default=False, action="store_true",
+        help="Enable assertions for the Lua C API.")
     parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
     parser.add_argument("--downloads",
