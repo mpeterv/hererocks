@@ -64,6 +64,10 @@ def exec_command(capture, *args):
     try:
         output = runner(command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as exception:
+        if capture and not exception.output.strip():
+            # Ignore errors if output is empty.
+            return ""
+
         if not live_output:
             sys.stdout.write(exception.output)
 
@@ -71,9 +75,10 @@ def exec_command(capture, *args):
             exception.returncode, command))
 
     if opts.verbose and capture:
+        output = output.decode("UTF-8")
         sys.stdout.write(output)
 
-    return capture and output.decode("UTF-8")
+    return capture and output
 
 def run_command(*args):
     exec_command(False, *args)
@@ -102,7 +107,11 @@ def set_git_branch_accepts_tags():
             git_branch_accepts_tags = major > 1 or (
                 major == 1 and (minor > 7 or (minor == 7 and tiny >= 10)))
 
-def git_clone_command(repo, ref):
+def git_clone_command(repo, ref, is_cache):
+    if is_cache:
+        # Cache full repos.
+        return "git clone", True
+
     # Http(s) transport may be dumb and not understand --depth.
     if repo.startswith("http://") or repo.startswith("https://"):
         if not any(map(repo.startswith, clever_http_git_whitelist)):
@@ -147,16 +156,7 @@ class Program(object):
                 self.repo, _, ref = version.partition("@")
 
             # Have to clone the repo to get the commit ref points to.
-            result_dir = os.path.join(temp_dir, self.name)
-            print("Cloning {} from {} @{}".format(self.title, self.repo, ref))
-            clone_command, need_checkout = git_clone_command(self.repo, ref)
-            run_command(clone_command, quote(self.repo), quote(result_dir))
-            os.chdir(result_dir)
-
-            if need_checkout and ref != "master":
-                run_command("git checkout", quote(ref))
-
-            self.fetched = True
+            self.fetch_repo(ref)
             self.commit = exec_command(True, "git rev-parse HEAD").strip()
             self.version_suffix = " @" + self.commit[:7]
         else:
@@ -173,8 +173,53 @@ class Program(object):
             self.fetched = True
             self.version_suffix = ""
 
+    def fetch_repo(self, ref):
+        message = "Cloning {} from {} @{}".format(self.title, self.repo, ref)
+
+        if self.repo == self.default_repo:
+            # Default repos are cached.
+            if not os.path.exists(opts.downloads):
+                os.makedirs(opts.downloads)
+
+            repo_path = os.path.join(opts.downloads, self.name)
+            self.fetched = False
+
+            if os.path.exists(repo_path):
+                print(message + " (cached)")
+                # Sync with origin first.
+                os.chdir(repo_path)
+
+                if not exec_command(True, "git rev-parse --quiet --verify", quote(ref)):
+                    run_command("git fetch")
+
+                run_command("git checkout", quote(ref))
+
+                # If HEAD is not detached, we are on a branch that must be synced.
+                if exec_command(True, "git symbolic-ref -q HEAD"):
+                    run_command("git pull --rebase")
+
+                return
+        else:
+            self.fetched = True
+            repo_path = os.path.join(temp_dir, self.name)
+
+        print(message)
+        clone_command, need_checkout = git_clone_command(self.repo, ref, not self.fetched)
+        run_command(clone_command, quote(self.repo), quote(repo_path))
+        os.chdir(repo_path)
+
+        if need_checkout and ref != "master":
+            run_command("git checkout", quote(ref))
+
     def fetch(self):
         if self.fetched:
+            return
+
+        if self.source_kind == "git":
+            # Currently inside the cached git repo, just copy it somewhere.
+            result_dir = os.path.join(temp_dir, self.name)
+            copy_dir(".", result_dir)
+            os.chdir(result_dir)
             return
 
         if not os.path.exists(opts.downloads):
@@ -227,10 +272,10 @@ class Lua(Program):
     def __init__(self, version):
         super(Lua, self).__init__(version)
 
-        if self.fetched:
-            self.major_version = self.major_version_from_source()
-        else:
+        if self.source_kind == "fixed":
             self.major_version = self.major_version_from_version()
+        else:
+            self.major_version = self.major_version_from_source()
 
         if not self.version_suffix:
             self.version_suffix = " " + self.major_version
