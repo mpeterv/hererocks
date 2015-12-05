@@ -531,7 +531,7 @@ class LuaJIT(Lua):
             run_command("msvcbuild.bat")
             os.chdir("..")
         else:
-            run_command("make", "PREFIX=" + quote(opts.location))
+            run_command("make")
 
     def make_install(self):
         luajit_file = exe("luajit")
