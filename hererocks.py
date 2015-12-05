@@ -357,9 +357,8 @@ class Lua(Program):
         ])
 
     def patch_defines(self):
-        defines = os.linesep.join(self.defines)
-        redefines = os.linesep.join(self.redefines)
-        linesep = os.linesep.encode("UTF-8")
+        defines = "\n".join(self.defines)
+        redefines = "\n".join(self.redefines)
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "rb")
         luaconf_src = luaconf_h.read()
@@ -367,13 +366,13 @@ class Lua(Program):
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
         header, _, main = body.partition(b"#define")
-        first_define, main = main.split(linesep, 1)
+        first_define, main = main.split(b"\n", 1)
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "wb")
-        luaconf_h.write(header + b"#define" + first_define + linesep)
-        luaconf_h.write(defines.encode("UTF-8") + linesep)
+        luaconf_h.write(header + b"#define" + first_define + b"\n")
+        luaconf_h.write(defines.encode("UTF-8") + b"\n")
         luaconf_h.write(main)
-        luaconf_h.write(redefines.encode("UTF-8") + linesep)
+        luaconf_h.write(redefines.encode("UTF-8") + b"\n")
         luaconf_h.write(b"#endif")
         luaconf_h.write(tail)
         luaconf_h.close()
