@@ -529,7 +529,12 @@ class LuaJIT(Lua):
 
     @staticmethod
     def make():
-        run_command("make", "PREFIX=" + quote(opts.location))
+        if os.name == "nt" and opts.target == "cl":
+            os.chdir("src")
+            run_command("msvcbuild.bat")
+            os.chdir("..")
+        else:
+            run_command("make", "PREFIX=" + quote(opts.location))
 
     def make_install(self):
         run_command("make install", "PREFIX=" + quote(opts.location),
