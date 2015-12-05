@@ -141,6 +141,12 @@ def copy_files(path, *files):
         if src is not None:
             shutil.copy(src, path)
 
+def exe(name):
+    if os.name == "nt":
+        return name + ".exe"
+    else:
+        return name
+
 class Program(object):
     def __init__(self, version):
         version = self.translations.get(version, version)
@@ -460,16 +466,16 @@ class RioLua(Lua):
                 self.defines.append("#define LUA_COMPAT_5_1")
 
     def set_files(self):
-        self.lua_file = "lua"
-        self.luac_file = "luac"
+        self.lua_file = exe("lua")
+        self.luac_file = exe("luac")
         self.arch_file = "liblua.a"
         self.dll_file = None
 
-        if opts.target == "mingw":
-            self.lua_file += ".exe"
-            self.luac_file += ".exe"
-            self.arch_file = "liblua5" + self.major_version[2] + ".a"
+        if os.name == "nt":
             self.dll_file = "lua5" + self.major_version[2] + ".dll"
+
+            if opts.target == "cl":
+                self.arch_file = None
 
     @staticmethod
     def make():
@@ -488,6 +494,7 @@ class RioLua(Lua):
 
         copy_files(os.path.join(opts.location, "include"),
                    "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+
         copy_files(os.path.join(opts.location, "lib"), self.arch_file)
 
 class LuaJIT(Lua):
@@ -527,14 +534,34 @@ class LuaJIT(Lua):
             run_command("make", "PREFIX=" + quote(opts.location))
 
     def make_install(self):
-        run_command("make install", "PREFIX=" + quote(opts.location),
-                    "INSTALL_TNAME=lua", "INSTALL_TSYM=luajit_symlink",
-                    "INSTALL_LJLIBD=" + quote(os.path.join(
-                        opts.location, "share", "lua", self.major_version)),
-                    "INSTALL_INC=" + quote(os.path.join(opts.location, "include")))
+        luajit_file = exe("luajit")
+        lua_file = exe("lua")
+        arch_file = "libluajit.a"
+        target_arch_file = "liblua.a"
+        self.dll_file = None
 
-        if os.path.exists(os.path.join(opts.location, "bin", "luajit_symlink")):
-            os.remove(os.path.join(opts.location, "bin", "luajit_symlink"))
+        if os.name == "nt":
+            self.arch_file = "lua51.lib"
+            target_arch_file = "lua51.lib"
+            self.dll_file = "lua51.dll"
+
+        os.chdir("src")
+        copy_files(os.path.join(opts.location, "bin"), self.dll_file)
+        shutil.copy(luajit_file, os.path.join(opts.location, "bin", lua_file))
+
+        copy_files(os.path.join(opts.location, "include"),
+                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp")
+
+        copy_files(os.path.join(opts.location, "lib"))
+        shutil.copy(arch_file, os.path.join(opts.location, target_arch_file))
+
+        jitlib_path = os.path.join(
+            opts.location, "share", "lua", self.major_version, "jit")
+
+        if os.path.exists(jitlib_path):
+            shutil.rmtree(jitlib_path)
+
+        copy_dir("jit", jitlib_path)
 
 class LuaRocks(Program):
     name = "luarocks"
