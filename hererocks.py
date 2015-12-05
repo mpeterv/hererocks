@@ -133,6 +133,25 @@ def url_to_name(s):
 def identifiers_to_string(identifiers):
     return "-".join(identifiers)
 
+def check_subdir(path, subdir):
+    path = os.path.join(path, subdir)
+
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    return path
+
+def move_files(path, *files):
+    for src in files:
+        if src is not None:
+            dst = os.path.join(path, os.path.basename(src))
+
+            # On Windows os.rename will fail if destination exists.
+            if os.path.exists(dst):
+                os.remove(dst)
+
+            os.rename(src, dst)
+
 class Program(object):
     def __init__(self, version):
         version = self.translations.get(version, version)
@@ -451,13 +470,35 @@ class RioLua(Lua):
             else:
                 self.defines.append("#define LUA_COMPAT_5_1")
 
-    @staticmethod
-    def make():
+    def set_files(self):
+        self.lua_file = "lua"
+        self.luac_file = "luac"
+        self.arch_file = "liblua.a"
+        self.dll_file = None
+
+        if opts.target == "mingw":
+            self.lua_file += ".exe"
+            self.luac_file += ".exe"
+            self.arch_file = "liblua5" + self.major_version[2] + ".a"
+            self.dll_file = "lua5" + self.major_version[2] + ".dll"
+
+    def make(self):
+        self.set_files()
         run_command("make", opts.target)
 
-    @staticmethod
-    def make_install():
-        run_command("make install", "INSTALL_TOP=" + quote(opts.location))
+    def make_install(self):
+        os.chdir("src")
+        move_files(check_subdir(opts.location, "bin"),
+                   self.lua_file, self.luac_file, self.dll_file)
+
+        lua_hpp = "lua.hpp"
+
+        if not os.path.exists(lua_hpp):
+            lua_hpp = "../etc/lua.hpp"
+
+        move_files(check_subdir(opts.location, "include"),
+                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+        move_files(check_subdir(opts.location, "lib"), self.arch_file)
 
 class LuaJIT(Lua):
     name = "LuaJIT"
