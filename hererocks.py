@@ -537,7 +537,7 @@ class LuaJIT(Lua):
         luajit_file = exe("luajit")
         lua_file = exe("lua")
         arch_file = "libluajit.a"
-        target_arch_file = "liblua.a"
+        target_arch_file = "libluajit-5.1.a"
         self.dll_file = None
 
         if os.name == "nt":
@@ -553,7 +553,7 @@ class LuaJIT(Lua):
                    "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp")
 
         copy_files(os.path.join(opts.location, "lib"))
-        shutil.copy(arch_file, os.path.join(opts.location, target_arch_file))
+        shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
 
         jitlib_path = os.path.join(
             opts.location, "share", "lua", self.major_version, "jit")
