@@ -302,9 +302,6 @@ class Lua(Program):
         self.set_package_paths()
         self.add_package_paths_to_defines()
 
-        if opts.apicheck:
-            self.defines.append("#define LUA_USE_APICHECK")
-
     @staticmethod
     def major_version_from_source():
         lua_h = open(os.path.join("src", "lua.h"))
@@ -320,7 +317,7 @@ class Lua(Program):
 
         if self.identifiers is not None:
             self.identifiers.extend(map(url_to_name, [
-                opts.target, self.compat, str(opts.apicheck), opts.location
+                opts.target, self.compat, opts.cflags or "", opts.location
             ]))
 
     def add_options_to_version_suffix(self):
@@ -332,8 +329,8 @@ class Lua(Program):
         if self.compat != "default":
             options.append(("compat", self.compat))
 
-        if opts.apicheck:
-            options.append(("apicheck", "true"))
+        if opts.cflags is not None:
+            options.append(("cflags", opts.cflags))
 
         if options:
             self.version_suffix += " (" + (", ".join(
@@ -477,9 +474,15 @@ class RioLua(Lua):
             if opts.target == "cl":
                 self.arch_file = None
 
-    @staticmethod
-    def make():
-        run_command("make", opts.target)
+    def make(self):
+        if self.major_version == "5.1":
+            # Lua 5.1 doesn't support passing MYCFLAGS to Makefile.
+            run_command("sed -i s/MYCFLAGS/SYSCFLAGS/g src/Makefile")
+            substitution = "s/-Wall $(SYSCFLAGS)/-Wall $(SYSCFLAGS) $(MYCFLAGS)/g"
+            run_command("sed -i", quote(substitution), "src/Makefile")
+
+        cmd = "make" if opts.cflags is None else "make MYCFLAGS=" + quote(opts.cflags)
+        run_command(cmd, opts.target)
 
     def make_install(self):
         self.set_files()
@@ -531,7 +534,7 @@ class LuaJIT(Lua):
             run_command("msvcbuild.bat")
             os.chdir("..")
         else:
-            run_command("make")
+            run_command("make" if opts.cflags is None else "make XCFLAGS=" + quote(opts.cflags))
 
     def make_install(self):
         luajit_file = exe("luajit")
@@ -677,8 +680,8 @@ def main():
         "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
     parser.add_argument(
-        "--apicheck", default=False, action="store_true",
-        help="Enable assertions for the Lua C API.")
+        "--cflags", default=None,
+        help="Pass additional options to C compiler when building Lua or LuaJIT.")
     parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
     parser.add_argument("--downloads",
