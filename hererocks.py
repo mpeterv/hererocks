@@ -224,6 +224,13 @@ class Program(object):
         if need_checkout and ref != "master":
             run_command("git checkout", quote(ref))
 
+    def get_download_name(self):
+        return self.name + "-" + self.version + ("-win32" if self.win32_zip else "")
+
+    def get_download_url(self):
+        return self.downloads + "/" + self.get_download_name() + (
+            ".zip" if self.win32_zip else ".tar.gz")
+
     def fetch(self):
         if self.fetched:
             return
@@ -239,8 +246,7 @@ class Program(object):
             os.makedirs(opts.downloads)
 
         archive_name = os.path.join(opts.downloads, self.name + self.version)
-        download_name = self.name + "-" + self.version + ("-win32" if self.win32_zip else "")
-        url = self.downloads + "/" + download_name + (".zip" if self.win32_zip else ".tar.gz")
+        url = self.get_download_url()
         message = "Fetching {} from {}".format(self.title, url)
 
         if not os.path.exists(archive_name):
@@ -256,7 +262,7 @@ class Program(object):
 
         archive.extractall(temp_dir)
         archive.close()
-        os.chdir(os.path.join(temp_dir, download_name))
+        os.chdir(os.path.join(temp_dir, self.get_download_name()))
         self.fetched = True
 
     def set_identifiers(self):
@@ -503,9 +509,9 @@ class RioLua(Lua):
 class LuaJIT(Lua):
     name = "LuaJIT"
     title = "LuaJIT"
-    downloads = "http://luajit.org/download"
+    downloads = "https://github.com/LuaJIT/LuaJIT/archive"
     win32_zip = False
-    default_repo = "https://github.com/luajit/luajit"
+    default_repo = "https://github.com/LuaJIT/LuaJIT"
     versions = [
         "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
     ]
@@ -515,6 +521,9 @@ class LuaJIT(Lua):
         "2.1": "@v2.1",
         "^": "2.0.4"
     }
+
+    def get_download_url(self):
+        return self.downloads + "/v" + self.version + ".tar.gz"
 
     @staticmethod
     def major_version_from_version():
