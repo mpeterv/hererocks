@@ -708,8 +708,8 @@ def main():
                         # help="Cache downloads in 'DOWNLOADS' directory.",
                         help=argparse.SUPPRESS, default=get_default_cache())
     parser.add_argument("--no-git-cache",
-                        # help="Do not cache default git repos.",
-                        help=argparse.SUPPRESS, action="store_true", default=False)
+                        help="Do not cache default git repos.",
+                        action="store_true", default=False)
     parser.add_argument("--builds",
                         # help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
                         help=argparse.SUPPRESS, default=None)
