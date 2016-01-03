@@ -11,7 +11,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.3.1/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.4.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
