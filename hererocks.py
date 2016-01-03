@@ -481,13 +481,24 @@ class RioLua(Lua):
                 self.arch_file = None
 
     def make(self):
-        if self.major_version == "5.1":
-            # Lua 5.1 doesn't support passing MYCFLAGS to Makefile.
-            run_command("sed -i s/MYCFLAGS/SYSCFLAGS/g src/Makefile")
-            substitution = "s/-Wall $(SYSCFLAGS)/-Wall $(SYSCFLAGS) $(MYCFLAGS)/g"
-            run_command("sed -i", quote(substitution), "src/Makefile")
+        cmd = "make"
 
-        cmd = "make" if opts.cflags is None else "make MYCFLAGS=" + quote(opts.cflags)
+        if opts.cflags is not None:
+            if self.major_version == "5.1":
+                # Lua 5.1 doesn't support passing MYCFLAGS to Makefile.
+                makefile_h = open(os.path.join("src", "Makefile"), "rb")
+                makefile_src = makefile_h.read()
+                makefile_h.close()
+
+                before, it, after = makefile_src.partition(b"CFLAGS= -O2 -Wall $(MYCFLAGS)")
+                makefile_src = before + it + " " + opts.cflags + after
+
+                makefile_h = open(os.path.join("src", "Makefile"), "wb")
+                makefile_h.write(makefile_src)
+                makefile_h.close()
+            else:
+                cmd = "make MYCFLAGS=" + quote(opts.cflags)
+
         run_command(cmd, opts.target)
 
     def make_install(self):
