@@ -11,7 +11,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.4.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/0.5.0/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Usage
 -----
@@ -56,7 +56,7 @@ Available versions: 2.0.0 - 2.0.4, 2.1 (installs from ``v2.1`` branch of the Lua
 Installing LuaRocks
 ^^^^^^^^^^^^^^^^^^^
 
-Available versions: 2.0.8 - 2.0.12, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
+Available versions: 2.0.8 - 2.0.12, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
 
 Version 2.0.8 does not suppoer Lua 5.2. Versions 2.1.0 - 2.1.2 do not support Lua 5.3.
 
