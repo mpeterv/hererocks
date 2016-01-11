@@ -598,15 +598,17 @@ class LuaRocks(Program):
     versions = [
         "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12",
         "2.1.0", "2.1.1", "2.1.2",
-        "2.2.0", "2.2.1", "2.2.2"
+        "2.2.0", "2.2.1", "2.2.2",
+        "2.3.0"
     ]
     translations = {
-        "2": "2.2.2",
+        "2": "2.3.0",
         "2.0": "2.0.12",
         "2.1": "2.1.2",
         "2.2": "2.2.2",
+        "2.3": "2.3.0",
         "3": "@luarocks-3",
-        "^": "2.2.2"
+        "^": "2.3.0"
     }
 
     def is_luarocks_2_0(self):
@@ -689,7 +691,7 @@ def main():
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
-        "As with Lua, a version number (in range 2.0.8 - 2.2.2), '^', git URI with reference or "
+        "As with Lua, a version number (in range 2.0.8 - 2.3.0), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that Lua 5.2 is not supported in LuaRocks 2.0.8 "
