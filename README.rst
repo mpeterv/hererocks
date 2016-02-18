@@ -58,7 +58,7 @@ Installing LuaRocks
 
 Available versions: 2.0.8 - 2.0.12, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
 
-Version 2.0.8 does not suppoer Lua 5.2. Versions 2.1.0 - 2.1.2 do not support Lua 5.3.
+Version 2.0.8 does not support Lua 5.2. Versions 2.1.0 - 2.1.2 do not support Lua 5.3.
 
 Using hererocks to set up automated testing
 -------------------------------------------
