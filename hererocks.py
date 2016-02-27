@@ -524,9 +524,6 @@ class RioLua(Lua):
         os.chdir("src")
 
         objs = []
-
-        static_cflags = cflags
-
         luac_objs = ["luac.o", "print.o"]
 
         for src in sorted(os.listdir(".")):
