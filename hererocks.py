@@ -147,6 +147,9 @@ def exe(name):
     else:
         return name
 
+def objext():
+    return ".obj" if opts.target == "cl" else ".o"
+
 class Program(object):
     def __init__(self, version):
         version = self.translations.get(version, version)
@@ -443,9 +446,13 @@ class RioLua(Lua):
 
         self.lua_file = exe("lua")
         self.luac_file = exe("luac")
-        self.arch_file = "liblua5" + self.major_version[2] + ".a"
 
-        if opts.target == "mingw":
+        if opts.target == "cl":
+            self.arch_file = "lua5" + self.major_version[2] + ".lib"
+        else:
+            self.arch_file = "liblua5" + self.major_version[2] + ".a"
+
+        if opts.target == "mingw" or opts.target == "cl":
             self.dll_file = "lua5" + self.major_version[2] + ".dll"
         else:
             self.dll_file = None
@@ -511,11 +518,17 @@ class RioLua(Lua):
         if opts.cflags is not None:
             cflags.append(opts.cflags)
 
-        cflags.insert(0, "-O2 -Wall -Wextra")
+        if opts.target == "cl":
+            cc = "cl /nologo /MD /O2 /W3 /c /D_CRT_SECURE_NO_DEPRECATE"
+        else:
+            cflags.insert(0, "-O2 -Wall -Wextra")
+
         static_cflags = " ".join(cflags)
 
         if opts.target == "mingw":
             cflags.insert(1, "-DLUA_BUILD_AS_DLL")
+        elif opts.target == "cl":
+            cflags.insert(0, "-DLUA_BUILD_AS_DLL")
 
         cflags = " ".join(cflags)
         lflags.append("-lm")
@@ -524,29 +537,49 @@ class RioLua(Lua):
         os.chdir("src")
 
         objs = []
-        luac_objs = ["luac.o", "print.o"]
+        luac_objs = ["luac" + objext(), "print" + objext()]
 
         for src in sorted(os.listdir(".")):
             base, ext = os.path.splitext(src)
 
             if ext == ".c":
-                obj = base + ".o"
+                obj = base + objext()
                 objs.append(obj)
-                run_command(cc, static_cflags if obj in luac_objs else cflags, "-c -o", obj, src)
+
+                cmd_suffix = src if opts.target == "cl" else ("-c -o " + obj + " " + src)
+                run_command(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
 
         lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and obj_ != "lua.o"]
+        luac_objs = "luac" + objext()
 
-        run_command("ar rcu", self.arch_file, *lib_objs)
-        run_command("ranlib", self.arch_file)
+        if "print" + objext() in objs:
+            luac_objs += " print" + objext()
 
-        luac_objs = "luac.o print.o" if "print.o" in objs else "luac.o"
-        run_command(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
+        if opts.target == "cl":
+            run_command("link /nologo /out:luac.exe", luac_objs, lib_objs)
+
+            if os.path.exists("luac.exe.manifest"):
+                run_command("mt /nologo -manifest luac.exe.manifest -outputresource:luac.exe")
+        else:
+            run_command("ar rcu", self.arch_file, *lib_objs)
+            run_command("ranlib", self.arch_file)
+            run_command(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
 
         if opts.target == "mingw":
             run_command(cc + " -shared -o", self.dll_file, *lib_objs)
             run_command("strip --strip-unneeded", self.dll_file)
-
             run_command(cc, "-o", self.lua_file, "-s lua.o", self.dll_file)
+        elif opts.target == "cl":
+            run_command("link /nologo /DLL /out:" + self.dll_file, *lib_objs)
+
+            if os.path.exists(self.dll_file + ".manifest"):
+                run_command("mt /nologo -manifest " + self.dll_file +
+                            ".manifest -outputresource:" + self.dll_file)
+
+            run_command("link /nologo /out:lua.exe lua.obj", self.arch_file)
+
+            if os.path.exists("lua.exe.manifest"):
+                run_command("mt /nologo -manifest lua.exe.manifest -outputresource:lua.exe")
         else:
             run_command(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
 
