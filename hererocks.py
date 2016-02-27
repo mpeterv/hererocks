@@ -549,7 +549,7 @@ class RioLua(Lua):
                 cmd_suffix = src if opts.target == "cl" else ("-c -o " + obj + " " + src)
                 run_command(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
 
-        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and obj_ != "lua.o"]
+        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and (obj_ != "lua" + objext())]
         luac_objs = "luac" + objext()
 
         if "print" + objext() in objs:
