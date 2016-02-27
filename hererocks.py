@@ -534,7 +534,7 @@ class RioLua(Lua):
                 objs.append(obj)
                 run_command(cc, static_cflags if obj in luac_objs else cflags, "-c -o", obj, src)
 
-        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and obj_ != "lua"]
+        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and obj_ != "lua.o"]
 
         run_command("ar rcu", self.arch_file, *lib_objs)
         run_command("ranlib", self.arch_file)
