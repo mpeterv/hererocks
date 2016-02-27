@@ -8,12 +8,13 @@ environment:
   - LUA: 5.2
   - LUA: 5.3
 
-configuration: MinGW
+configuration:
+- 2015
 
 platform: x86
 
-before_build: set PATH=C:\mingw\bin;%PATH%
+before_build: '"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"'
 
-build_script: python hererocks.py here --lua "%LUA%" --verbose
+build_script: python hererocks.py here --lua "%LUA%" --verbose --target cl
 
 test_script: here\bin\lua -v
