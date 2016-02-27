@@ -527,9 +527,6 @@ class RioLua(Lua):
 
         static_cflags = cflags
 
-        if opts.target == "mingw":
-            cflags = cflags + " -DLUA_BUILD_AS_DLL"
-
         luac_objs = ["luac.o", "print.o"]
 
         for src in sorted(os.listdir(".")):
