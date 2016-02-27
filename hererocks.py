@@ -556,7 +556,7 @@ class RioLua(Lua):
             luac_objs += " print" + objext()
 
         if opts.target == "cl":
-            run_command("link /nologo /out:luac.exe", luac_objs, lib_objs)
+            run_command("link /nologo /out:luac.exe", luac_objs, *lib_objs)
 
             if os.path.exists("luac.exe.manifest"):
                 run_command("mt /nologo -manifest luac.exe.manifest -outputresource:luac.exe")
