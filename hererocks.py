@@ -546,7 +546,7 @@ class RioLua(Lua):
             run_command(cc + " -shared -o", self.dll_file, *lib_objs)
             run_command("strip --strip-unneeded", self.dll_file)
 
-            run_command(cc, "-o -s", self.lua_file, "lua.o", self.dll_file)
+            run_command(cc, "-o", self.lua_file, "-s lua.o", self.dll_file)
         else:
             run_command(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
 
