@@ -438,6 +438,18 @@ class RioLua(Lua):
         "^": "5.3.2"
     }
 
+    def __init__(self, version):
+        super(RioLua, self).__init__(version)
+
+        self.lua_file = exe("lua")
+        self.luac_file = exe("luac")
+        self.arch_file = "liblua5" + self.major_version[2] + ".a"
+
+        if opts.target == "mingw":
+            self.dll_file = "lua5" + self.major_version[2] + ".dll"
+        else:
+            self.dll_file = None
+
     def major_version_from_version(self):
         return self.version[:3]
 
@@ -468,41 +480,85 @@ class RioLua(Lua):
             else:
                 self.defines.append("#define LUA_COMPAT_5_1")
 
-    def set_files(self):
-        self.lua_file = exe("lua")
-        self.luac_file = exe("luac")
-        self.arch_file = "liblua.a"
-        self.dll_file = None
-
-        if os.name == "nt":
-            self.dll_file = "lua5" + self.major_version[2] + ".dll"
-
-            if opts.target == "cl":
-                self.arch_file = None
-
     def make(self):
-        cmd = "make"
+        if self.major_version == "5.3":
+            cc = "gcc -std=gnu99"
+        else:
+            cc = "gcc"
+
+        if opts.target == "linux" or opts.target == "freebsd":
+            cflags = ["-DLUA_USE_LINUX"]
+
+            if opts.target == "linux":
+                if self.major_version == "5.1":
+                    lflags = ["-Wl,-E -ldl -lreadline -lhistory -lncurses"]
+                else:
+                    lflags = ["-Wl,-E -ldl -lreadline"]
+            else:
+                lflags = ["-Wl,-E -lreadline"]
+        elif opts.target == "macosx":
+            cflags = ["-DLUA_USE_MACOSX -DLUA_USE_READLINE"]
+            lflags = ["-lreadline"]
+            cc = "cc"
+        else:
+            lflags = []
+
+            if opts.target == "posix":
+                cflags = ["-DLUA_USE_POSIX"]
+            else:
+                cflags = []
 
         if opts.cflags is not None:
-            if self.major_version == "5.1":
-                # Lua 5.1 doesn't support passing MYCFLAGS to Makefile.
-                makefile_h = open(os.path.join("src", "Makefile"), "rb")
-                makefile_src = makefile_h.read()
-                makefile_h.close()
+            cflags.append(opts.cflags)
 
-                before, it, after = makefile_src.partition(b"CFLAGS= -O2 -Wall $(MYCFLAGS)")
-                makefile_src = before + it + " " + opts.cflags + after
+        cflags.insert(0, "-O2 -Wall -Wextra")
+        static_cflags = " ".join(cflags)
 
-                makefile_h = open(os.path.join("src", "Makefile"), "wb")
-                makefile_h.write(makefile_src)
-                makefile_h.close()
-            else:
-                cmd = "make MYCFLAGS=" + quote(opts.cflags)
+        if opts.target == "mingw":
+            cflags.insert(1, "-DLUA_BUILD_AS_DLL")
 
-        run_command(cmd, opts.target)
+        cflags = " ".join(cflags)
+        lflags.append("-lm")
+        lflags = " ".join(lflags)
+
+        os.chdir("src")
+
+        objs = []
+
+        static_cflags = cflags
+
+        if opts.target == "mingw":
+            cflags = cflags + " -DLUA_BUILD_AS_DLL"
+
+        luac_objs = ["luac.o", "print.o"]
+
+        for src in sorted(os.listdir(".")):
+            base, ext = os.path.splitext(src)
+
+            if ext == ".c":
+                obj = base + ".o"
+                objs.append(obj)
+                run_command(cc, static_cflags if obj in luac_objs else cflags, "-c -o", obj, src)
+
+        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and obj_ != "lua"]
+
+        run_command("ar rcu", self.arch_file, *lib_objs)
+        run_command("ranlib", self.arch_file)
+
+        luac_objs = "luac.o print.o" if "print.o" in objs else "luac.o"
+        run_command(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
+
+        if opts.target == "mingw":
+            run_command(cc + " -shared -o", self.dll_file, *lib_objs)
+            run_command("strip --strip-unneeded", self.dll_file)
+
+            run_command(cc, "-o -s", self.lua_file, "lua.o", self.dll_file)
+        else:
+            run_command(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
+
+        os.chdir("..")
 
     def make_install(self):
-        self.set_files()
         os.chdir("src")
         copy_files(os.path.join(opts.location, "bin"),
                    self.lua_file, self.luac_file, self.dll_file)
@@ -549,7 +605,7 @@ class LuaJIT(Lua):
 
     @staticmethod
     def make():
-        if os.name == "nt" and opts.target == "cl":
+        if opts.target == "cl":
             os.chdir("src")
             run_command("msvcbuild.bat")
             os.chdir("..")
