@@ -658,7 +658,7 @@ class LuaJIT(Lua):
         shutil.copy(luajit_file, os.path.join(opts.location, "bin", lua_file))
 
         copy_files(os.path.join(opts.location, "include"),
-                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp")
+                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp", "luajit.h")
 
         copy_files(os.path.join(opts.location, "lib"))
         shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
