@@ -300,7 +300,7 @@ class Lua(Program):
             self.major_version = self.major_version_from_source()
 
         if not self.version_suffix:
-            self.version_suffix = " " + self.major_version
+            self.set_version_suffix()
 
         self.set_compat()
         self.add_options_to_version_suffix()
@@ -459,6 +459,9 @@ class RioLua(Lua):
 
     def major_version_from_version(self):
         return self.version[:3]
+
+    def set_version_suffix(self):
+        self.version_suffix = " " + self.major_version
 
     def set_compat(self):
         if self.major_version == "5.1":
@@ -622,6 +625,10 @@ class LuaJIT(Lua):
     @staticmethod
     def major_version_from_version():
         return "5.1"
+
+    @staticmethod
+    def set_version_suffix():
+        pass
 
     def set_compat(self):
         self.compat = "5.2" if opts.compat in ["all", "5.2"] else "default"
