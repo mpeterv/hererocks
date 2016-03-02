@@ -4,9 +4,10 @@ shallow_clone: true
 
 environment:
   matrix:
-  - LUA: 5.1
-  - LUA: 5.2
-  - LUA: 5.3
+  - LUA: "lua 5.1"
+  - LUA: "lua 5.2"
+  - LUA: "lua 5.3"
+  - LUA: "luajit 2.0"
 
 configuration:
 - 2015
@@ -15,6 +16,6 @@ platform: x86
 
 before_build: '"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"'
 
-build_script: python hererocks.py here --lua "%LUA%" --verbose --target cl
+build_script: python hererocks.py here --%LUA% --verbose
 
 test_script: here\bin\lua -v
