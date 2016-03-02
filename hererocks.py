@@ -5,6 +5,7 @@
 from __future__ import print_function
 
 import argparse
+import distutils
 import os
 import re
 import shutil
@@ -28,7 +29,7 @@ temp_dir = None
 
 platform_to_lua_target = {
     "linux": "linux",
-    "win": "mingw",
+    "win": "cl" if os.name == "nt" or distutils.spawn.find_executable("cl") else "mingw",
     "darwin": "macosx",
     "freebsd": "freebsd"
 }
