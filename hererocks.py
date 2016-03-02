@@ -660,7 +660,7 @@ class LuaJIT(Lua):
         dll_file = None
 
         if os.name == "nt":
-            self.arch_file = "lua51.lib"
+            arch_file = "lua51.lib"
             target_arch_file = "lua51.lib"
             dll_file = "lua51.dll"
 
@@ -673,7 +673,9 @@ class LuaJIT(Lua):
 
         copy_files(os.path.join(opts.location, "lib"))
         shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
-        shutil.copy(so_file, os.path.join(opts.location, "lib", target_so_file))
+
+        if os.name != "nt":
+            shutil.copy(so_file, os.path.join(opts.location, "lib", target_so_file))
 
         jitlib_path = os.path.join(
             opts.location, "share", "lua", self.major_version, "jit")
