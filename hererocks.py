@@ -29,7 +29,7 @@ temp_dir = None
 
 platform_to_lua_target = {
     "linux": "linux",
-    "win": "cl" if os.name == "nt" or distutils.spawn.find_executable("cl") else "mingw",
+    "win": "cl" if os.name == "nt" and distutils.spawn.find_executable("cl") else "mingw",
     "darwin": "macosx",
     "freebsd": "freebsd"
 }
@@ -645,7 +645,10 @@ class LuaJIT(Lua):
             run_command("msvcbuild.bat")
             os.chdir("..")
         else:
-            run_command("make" if opts.cflags is None else "make XCFLAGS=" + quote(opts.cflags))
+            make = "mingw32-make" if (
+                opts.target == "mingw" and
+                distutils.spawn.find_executable("mingw32-make")) else "make"
+            run_command(make if opts.cflags is None else make + " XCFLAGS=" + quote(opts.cflags))
 
     def make_install(self):
         luajit_file = exe("luajit")
