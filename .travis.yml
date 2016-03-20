@@ -1,23 +1,30 @@
 language: python
-sudo: false
 
-os:
-  - linux
-  - osx
-
-cache:
-  directories: test/cache
-
-python:
-  - "2.7"
-  - "3.2"
-  - "3.5"
+matrix:
+  include:
+    - os: linux
+      sudo: false
+      python: 2.7
+      cache:
+        directories: test/cache
+    - os: linux
+      sudo: false
+      python: 3.2
+      cache:
+        directories: test/cache
+    - os: linux
+      sudo: false
+      python: 3.5
+      cache:
+        directories: test/cache
+    - os: osx
+      language: generic
 
 install:
-  - pip install pyflakes
-  - pip install pep8
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install pyflakes; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install pep8; fi
 
 script:
-  - pyflakes .
-  - pep8 .
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pyflakes .; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pep8 .; fi
   - ./test.sh
