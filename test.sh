@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 set -ev
 export PATH="$PWD/test/here/bin:$PATH"
-HEREROCKS="python hererocks.py test/here --downloads=test/cache --no-git-cache"
+HEREROCKS="python hererocks.py test/here --downloads=test/cache --no-git-cache --verbose"
 
 rm -rf test/here
 $HEREROCKS -l^ -r^
 lua -v
 luarocks --version
 luarocks make
-hererocks-test | grep "5\.3"
-$HEREROCKS -l^ -r^ | grep "already installed"
+hererocks-test | tee test/tmp && grep "5\.3" test/tmp
+$HEREROCKS -l^ -r^ | tee test/tmp && grep "already installed" test/tmp
 
 rm -rf test/here
-$HEREROCKS -j @v2.1 -r^ | grep "Fetching" | grep "cached"
+$HEREROCKS -j @v2.1 -r^ | tee test/tmp && grep "Fetching" test/tmp | grep "cached"
 lua -v
 lua -e "require 'jit.bcsave'"
 luarocks --version
 luarocks make
-hererocks-test | grep "2\.1"
+hererocks-test | tee test/tmp && grep "2\.1" test/tmp
 
 rm -rf test/here
 $HEREROCKS -l 5.1 --compat=none --no-readline
@@ -30,4 +30,4 @@ $HEREROCKS -l 5.3 --compat=none --builds=test/builds
 lua -e "assert(module == nil)"
 
 rm -rf test/here
-$HEREROCKS -l 5.3 --compat=none --builds=test/builds | grep "Building" | grep "cached"
+$HEREROCKS -l 5.3 --compat=none --builds=test/builds | tee test/tmp && grep "Building" test/tmp | grep "cached"
