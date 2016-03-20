@@ -12,7 +12,7 @@ hererocks-test | grep "5\.3"
 $HEREROCKS -l^ -r^ | grep "already installed"
 
 rm test/here -rf
-$HEREROCKS -j 2.1 -r^ | grep "Fetching" | grep "cached"
+$HEREROCKS -j @v2.1 -r^ | grep "Fetching" | grep "cached"
 lua -v
 lua -e "require 'jit.bcsave'"
 luarocks --version

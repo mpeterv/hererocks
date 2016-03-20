@@ -151,7 +151,7 @@ def git_clone_command(repo, ref, is_cache):
     else:
         return "git clone --depth=1", True
 
-def url_to_name(s):
+def escape_identifier(s):
     return re.sub("[^\w]", "_", s)
 
 def identifiers_to_string(identifiers):
@@ -315,9 +315,9 @@ class Program(object):
 
     def set_identifiers(self):
         if self.source_kind == "fixed":
-            self.identifiers = [self.name, self.version]
+            self.identifiers = [self.name, escape_identifier(self.version)]
         elif self.source_kind == "git":
-            self.identifiers = [self.name, "git", url_to_name(self.repo), url_to_name(self.commit)]
+            self.identifiers = [self.name, "git", escape_identifier(self.repo), escape_identifier(self.commit)]
         else:
             self.identifiers = None
 
@@ -370,7 +370,7 @@ class Lua(Program):
         super(Lua, self).set_identifiers()
 
         if self.identifiers is not None:
-            self.identifiers.extend(map(url_to_name, [
+            self.identifiers.extend(map(escape_identifier, [
                 opts.target, self.compat, opts.cflags or "", opts.location
             ]))
 
@@ -671,12 +671,13 @@ class LuaJIT(Lua):
     win32_zip = False
     default_repo = "https://github.com/LuaJIT/LuaJIT"
     versions = [
-        "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4"
+        "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4",
+        "2.1.0-beta1", "2.1.0-beta2"
     ]
     translations = {
         "2": "2.0.4",
         "2.0": "2.0.4",
-        "2.1": "@v2.1",
+        "2.1": "2.1.0-beta2",
         "^": "2.0.4"
     }
     checksums = {
@@ -685,6 +686,8 @@ class LuaJIT(Lua):
         "LuaJIT-2.0.2.tar.gz"      : "7cf1bdcd89452f64ed994cff85ae32613a876543a81a88939155266558a669bc",
         "LuaJIT-2.0.3.tar.gz"      : "8da3d984495a11ba1bce9a833ba60e18b532ca0641e7d90d97fafe85ff014baa",
         "LuaJIT-2.0.4.tar.gz"      : "d2abdf16bd3556c41c0aaedad76b6c227ca667be8350111d037a4c54fd43abad",
+        "LuaJIT-2.1.0-beta1.tar.gz": "3d10de34d8020d7035193013f07c93fc7f16fcf0bb28fc03f572a21a368a5f2a",
+        "LuaJIT-2.1.0-beta2.tar.gz": "82e115b21aa74634b2d9f3cb3164c21f3cde7750ba3258d8820f500f6a36b651",
     }
 
     def __init__(self, version):
@@ -882,7 +885,7 @@ def main():
     parser.add_argument(
         "-j", "--luajit", help="Version of LuaJIT to install. "
         "Version can be specified in the same way as for standard Lua. "
-        "Versions 2.0.0 - 2.1 are supported. "
+        "Versions 2.0.0 - 2.1.0-beta2 are supported. "
         "When installing from the LuaJIT main git repo its URI can be left out, "
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
