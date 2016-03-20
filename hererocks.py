@@ -5,7 +5,6 @@
 from __future__ import print_function
 
 import argparse
-import distutils
 import os
 import re
 import shutil
@@ -28,9 +27,33 @@ __all__ = ["main"]
 opts = None
 temp_dir = None
 
+def is_executable(path):
+    return (os.path.exists(path) and
+            os.access(path, os.F_OK | os.X_OK) and
+            not os.path.isdir(path))
+
+def program_exists(prog):
+    path = os.environ.get("PATH", os.defpath)
+
+    if not path:
+        return False
+
+    if os.name == "nt":
+        pathext = os.environ.get("PATHEXT", "").split(os.pathsep)
+        candidates = [prog + ext for ext in pathext]
+    else:
+        candidates = [prog]
+
+    for directory in path.split(os.pathsep):
+        for candidate in candidates:
+            if is_executable(os.path.join(directory, candidate)):
+                return True
+
+    return False
+
 platform_to_lua_target = {
     "linux": "linux",
-    "win": "cl" if os.name == "nt" and distutils.spawn.find_executable("cl") else "mingw",
+    "win": "cl" if os.name == "nt" and program_exists("cl") else "mingw",
     "darwin": "macosx",
     "freebsd": "freebsd"
 }
@@ -49,7 +72,6 @@ def get_default_cache():
         return os.path.join(cache_root, "HereRocks", "Cache")
     else:
         return os.path.join(os.getenv("HOME"), ".cache", "hererocks")
-
 
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
@@ -691,7 +713,7 @@ class LuaJIT(Lua):
         else:
             make = "mingw32-make" if (
                 opts.target == "mingw" and
-                distutils.spawn.find_executable("mingw32-make")) else "make"
+                program_exists("mingw32-make")) else "make"
             run_command(make if opts.cflags is None else make + " XCFLAGS=" + quote(opts.cflags))
 
     def make_install(self):
