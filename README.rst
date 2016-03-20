@@ -30,7 +30,7 @@ Version selection
 
 ``--lua/-l``, ``--luajit/-j`` and ``--luarocks/-r`` options should be used to select versions of programs to install. There are three ways to specify how to fetch the sources:
 
-* Using version number, such as ``5.1.5``. If patch or minor versions are left out the latest possible version will be used, e.g. for Lua ``5.2`` is currently equivalent to ``5.2.4``. ``^`` can be used to select the latest stable version. ``hererocks`` will fetch and unpack sources of the selected version from corresponding official downloads location.
+* Using version number, such as ``5.1.5``. If patch or minor versions are left out the latest possible version will be used, e.g. for Lua ``5.2`` is currently equivalent to ``5.2.4`` and for LuaJIT ``2.1`` is same as ``2.1.0-beta2``. ``^`` can be used to select the latest stable version. ``hererocks`` will fetch and unpack sources of the selected version from corresponding downloads location, verifying their SHA256 checksum.
 * Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for Lua (https://github.com/lua/lua), LuaJIT (https://github.com/luajit/luajit) and LuaRocks (https://github.com/keplerproject/luarocks). For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
 * Using path to a local directory.
 
@@ -46,12 +46,12 @@ Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.2.
 
 Use ``5.1.0`` to install Lua ``5.1`` which was released without patch version for some reason.
 
-When building Lua, ``hererocks`` tries to use sensible ``make`` target. The default can be seen in the help message printed by ``hererocks --help``. To select another target, use ``--target`` option.
+When building Lua, ``hererocks`` tries to emulate a sensible ``make`` target. The default can be seen in the help message printed by ``hererocks --help``. To select another target use ``--target`` option. To build without readline library use ``--no-readline`` option.
 
 Installing LuaJIT
 ^^^^^^^^^^^^^^^^^
 
-Available versions: 2.0.0 - 2.0.4, 2.1 (installs from ``v2.1`` branch of the LuaJIT git repository).
+Available versions: 2.0.0 - 2.0.4, 2.1.0-beta1 - 2.1.0-beta2.
 
 Installing LuaRocks
 ^^^^^^^^^^^^^^^^^^^
