@@ -268,19 +268,12 @@ class Program(object):
         else:
             print(message + " (cached)")
 
-        expected_checksum = self.checksums.get(self.get_file_name())
-        if expected_checksum:
-            observed_checksum = sha256_of_file(archive_name)
-            if expected_checksum == observed_checksum:
-                print("SHA256 checksum of {} matches:".format(archive_name))
-                print(expected_checksum)
-            else:
-                print("Error: wrong SHA256 checksum of {}!".format(archive_name))
-                print("Expected: {}".format(expected_checksum))
-                print("Observed: {}".format(observed_checksum))
-                sys.exit(1)
-        else:
-            print("Warning: no known checksum to verify {}".format(archive_name))
+        print("Verifying SHA256 checksum")
+        expected_checksum = self.checksums[self.get_file_name()]
+        observed_checksum = sha256_of_file(archive_name)
+        if expected_checksum != observed_checksum:
+            sys.exit("Error: SHA256 checksum mismatch for {}\nExpected: {}\nObserved: {}".format(
+                archive_name, expected_checksum, observed_checksum))
 
         if self.win32_zip:
             archive = zipfile.ZipFile(archive_name)
