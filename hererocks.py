@@ -446,7 +446,7 @@ class Lua(Program):
 class RioLua(Lua):
     name = "lua"
     title = "Lua"
-    downloads = "http://www.lua.org/ftp"
+    downloads = "https://www.lua.org/ftp"
     win32_zip = False
     default_repo = "https://github.com/lua/lua"
     versions = [
