@@ -15,6 +15,7 @@ import sys
 import tarfile
 import tempfile
 import zipfile
+import hashlib
 
 try:
     from urllib import urlretrieve
@@ -151,6 +152,12 @@ def exe(name):
 def objext():
     return ".obj" if opts.target == "cl" else ".o"
 
+def sha256_of_file(filename):
+    fileobj = open(filename, "rb")
+    contents = fileobj.read()
+    fileobj.close()
+    return hashlib.sha256(contents).hexdigest()
+
 class Program(object):
     def __init__(self, version):
         version = self.translations.get(version, version)
@@ -242,6 +249,7 @@ class Program(object):
             return
 
         if self.source_kind == "git":
+            print("Warning: checksum of {} is not verified (git)".format(self.name))
             # Currently inside the cached git repo, just copy it somewhere.
             result_dir = os.path.join(temp_dir, self.name)
             copy_dir(".", result_dir)
@@ -260,6 +268,20 @@ class Program(object):
             urlretrieve(url, archive_name)
         else:
             print(message + " (cached)")
+
+        expected_checksum = self.checksums.get(self.get_file_name())
+        if expected_checksum:
+            observed_checksum = sha256_of_file(archive_name)
+            if expected_checksum == observed_checksum:
+                print("SHA256 checksum of {} matches:".format(archive_name))
+                print(expected_checksum)
+            else:
+                print("Error: wrong SHA256 checksum of {}!".format(archive_name))
+                print("Expected: {}".format(expected_checksum))
+                print("Observed: {}".format(observed_checksum))
+                sys.exit(1)
+        else:
+            print("Warning: no known checksum to verify {}".format(archive_name))
 
         if self.win32_zip:
             archive = zipfile.ZipFile(archive_name)
@@ -443,6 +465,22 @@ class RioLua(Lua):
         "5.3": "5.3.2",
         "^": "5.3.2"
     }
+    checksums = {
+        "lua-5.1.tar.gz"  : "7f5bb9061eb3b9ba1e406a5aa68001a66cb82bac95748839dc02dd10048472c1",
+        "lua-5.1.1.tar.gz": "c5daeed0a75d8e4dd2328b7c7a69888247868154acbda69110e97d4a6e17d1f0",
+        "lua-5.1.2.tar.gz": "5cf098c6fe68d3d2d9221904f1017ff0286e4a9cc166a1452a456df9b88b3d9e",
+        "lua-5.1.3.tar.gz": "6b5df2edaa5e02bf1a2d85e1442b2e329493b30b0c0780f77199d24f087d296d",
+        "lua-5.1.4.tar.gz": "b038e225eaf2a5b57c9bcc35cd13aa8c6c8288ef493d52970c9545074098af3a",
+        "lua-5.1.5.tar.gz": "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333",
+        "lua-5.2.0.tar.gz": "cabe379465aa8e388988073d59b69e76ba0025429d2c1da80821a252cdf6be0d",
+        "lua-5.2.1.tar.gz": "64304da87976133196f9e4c15250b70f444467b6ed80d7cfd7b3b982b5177be5",
+        "lua-5.2.2.tar.gz": "3fd67de3f5ed133bf312906082fa524545c6b9e1b952e8215ffbd27113f49f00",
+        "lua-5.2.3.tar.gz": "13c2fb97961381f7d06d5b5cea55b743c163800896fd5c5e2356201d3619002d",
+        "lua-5.2.4.tar.gz": "b9e2e4aad6789b3b63a056d442f7b39f0ecfca3ae0f1fc0ae4e9614401b69f4b",
+        "lua-5.3.0.tar.gz": "ae4a5eb2d660515eb191bfe3e061f2b8ffe94dce73d32cfd0de090ddcc0ddb01",
+        "lua-5.3.1.tar.gz": "072767aad6cc2e62044a66e8562f51770d941e972dc1e4068ba719cd8bffac17",
+        "lua-5.3.2.tar.gz": "c740c7bb23a936944e1cc63b7c3c5351a8976d7867c5252c8854f7b2af9da68f",
+    }
 
     def __init__(self, version):
         super(RioLua, self).__init__(version)
@@ -621,6 +659,13 @@ class LuaJIT(Lua):
         "2.1": "@v2.1",
         "^": "2.0.4"
     }
+    checksums = {
+        "LuaJIT-2.0.0.tar.gz": "778650811bdd9fc55bbb6a0e845e4c0101001ce5ca1ab95001f0d289c61760ab",
+        "LuaJIT-2.0.1.tar.gz": "3b707768009115fe81d82c97ef25706e76af198a97201e1f4b096b7bb3ad9cda",
+        "LuaJIT-2.0.2.tar.gz": "7cf1bdcd89452f64ed994cff85ae32613a876543a81a88939155266558a669bc",
+        "LuaJIT-2.0.3.tar.gz": "8da3d984495a11ba1bce9a833ba60e18b532ca0641e7d90d97fafe85ff014baa",
+        "LuaJIT-2.0.4.tar.gz": "d2abdf16bd3556c41c0aaedad76b6c227ca667be8350111d037a4c54fd43abad",
+    }
 
     def get_download_url(self):
         return self.downloads + "/v" + self.version + ".tar.gz"
@@ -707,6 +752,32 @@ class LuaRocks(Program):
         "2.3": "2.3.0",
         "3": "@luarocks-3",
         "^": "2.3.0"
+    }
+    checksums = {
+        "luarocks-2.0.10.tar.gz"   : "11731dfe6e210a962cb2a857b8b2f14a9ab1043e13af09a1b9455b486401b46e",
+        "luarocks-2.0.10-win32.zip": "bc00dbc80da6939f372bace50ea68d1746111280862858ecef9fcaaa3d70661f",
+        "luarocks-2.0.11.tar.gz"   : "feee5a606938604f4fef1fdadc29692b9b7cdfb76fa537908d772adfb927741e",
+        "luarocks-2.0.11-win32.zip": "b0c2c149da49d70972178e3aec0a92a678b3daa2993dd6d6cdd56269730f8e12",
+        "luarocks-2.0.12.tar.gz"   : "ad4b465c5dfbdce436ef746a434317110d79f18ff79202a2697e215f4ac407ed",
+        "luarocks-2.0.12-win32.zip": "dfb7c7429541628903ec811f151ea19435d2182a9515db57542f6825802a1ae7",
+        "luarocks-2.0.8.tar.gz"    : "f8abf1ab03b744a817721a0ff4a0ee454e068735efaa8d1aadcfcd0f07cdaa88",
+        "luarocks-2.0.8-win32.zip" : "109e2dd91c66a7fd69471fcd56b3276f57aef334a4a8f53776b94b1ebd58334e",
+        "luarocks-2.0.9.tar.gz"    : "4e25a8052c6abe1685da1093e1adb59aa034106c9d335aa932f7b3b51297c63d",
+        "luarocks-2.0.9-win32.zip" : "c9389c288bac2c276e363ffbaaa6356119adefed243f0c47bf74611f9296bd94",
+        "luarocks-2.1.0.tar.gz"    : "69bf4cb40c8010a5d434f70d26c9885f4260ac265fdaa848c0edb50cc8e53f88",
+        "luarocks-2.1.0-win32.zip" : "363ecc0d09b70179735eef0dae158f98733e6d34226d6b5243bcbdc50d5987ca",
+        "luarocks-2.1.1.tar.gz"    : "995ba1b9c982b503fd6fc61c905dc07c3a7533c06587616d9f00d9f62bd318ac",
+        "luarocks-2.1.1-win32.zip" : "5fa8eccc91c7c1431480257cb1cf99fff902cf762576e1cd208762f01003e780",
+        "luarocks-2.1.2.tar.gz"    : "62625c7609c886bae23f8db55dba45dbb083bae0d19bf12fe29ec95f7d389ff3",
+        "luarocks-2.1.2-win32.zip" : "66beb4318261bc3e91544ba8672f04f3057137d32b2c33275ab6a355a7b5a546",
+        "luarocks-2.2.0.tar.gz"    : "9b1a4ec7b103e2fb90a7ba8589d7e0c8523a3d6d54ac469b0bbc144292b9279c",
+        "luarocks-2.2.0-win32.zip" : "0fb56f40f09352567c66318018b52b9fa9e055f318b8589abed24eb1e76a3def",
+        "luarocks-2.2.1.tar.gz"    : "713f8a7e33f1e6dc77ba2eec849a80a95f24f82382e0abc4523c2b8d435f7c55",
+        "luarocks-2.2.1-win32.zip" : "01b0410eb19f6e31342cbc12524f2e00eddfdf0bd9edcc325def7bcd93e331be",
+        "luarocks-2.2.2.tar.gz"    : "4f0427706873f30d898aeb1dfb6001b8a3478e46a5249d015c061fe675a1f022",
+        "luarocks-2.2.2-win32.zip" : "576721fb6fe224bbf5f60bd4c94c7c6f686889bb452ae1923a46d56f02df6588",
+        "luarocks-2.3.0.tar.gz"    : "68e38feeb66052e29ad1935a71b875194ed8b9c67c2223af5f4d4e3e2464ed97",
+        "luarocks-2.3.0-win32.zip" : "7aa02e7249906563a7ab8bb9db497cdeab0506328e4c8d45ffba120526dfec2a",
     }
 
     def is_luarocks_2_0(self):
