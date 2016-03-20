@@ -189,6 +189,7 @@ class Program(object):
             self.source_kind = "fixed"
             self.fetched = False
             self.version = version
+            self.fixed_version = version
             self.version_suffix = " " + version
         elif "@" in version:
             # Version from a git repo.
@@ -258,7 +259,7 @@ class Program(object):
             run_command("git checkout", quote(ref))
 
     def get_download_name(self):
-        return self.name + "-" + self.version + ("-win32" if self.win32_zip else "")
+        return self.name + "-" + self.fixed_version + ("-win32" if self.win32_zip else "")
 
     def get_file_name(self):
         return self.get_download_name() + (".zip" if self.win32_zip else ".tar.gz")
@@ -679,15 +680,22 @@ class LuaJIT(Lua):
         "^": "2.0.4"
     }
     checksums = {
-        "LuaJIT-2.0.0.tar.gz": "778650811bdd9fc55bbb6a0e845e4c0101001ce5ca1ab95001f0d289c61760ab",
-        "LuaJIT-2.0.1.tar.gz": "3b707768009115fe81d82c97ef25706e76af198a97201e1f4b096b7bb3ad9cda",
-        "LuaJIT-2.0.2.tar.gz": "7cf1bdcd89452f64ed994cff85ae32613a876543a81a88939155266558a669bc",
-        "LuaJIT-2.0.3.tar.gz": "8da3d984495a11ba1bce9a833ba60e18b532ca0641e7d90d97fafe85ff014baa",
-        "LuaJIT-2.0.4.tar.gz": "d2abdf16bd3556c41c0aaedad76b6c227ca667be8350111d037a4c54fd43abad",
+        "LuaJIT-2.0.0.tar.gz"      : "778650811bdd9fc55bbb6a0e845e4c0101001ce5ca1ab95001f0d289c61760ab",
+        "LuaJIT-2.0.1-fixed.tar.gz": "d33e91f347c0d79aa4fb1bd835df282a25f7ef9c3395928a1183947667c2d6b2",
+        "LuaJIT-2.0.2.tar.gz"      : "7cf1bdcd89452f64ed994cff85ae32613a876543a81a88939155266558a669bc",
+        "LuaJIT-2.0.3.tar.gz"      : "8da3d984495a11ba1bce9a833ba60e18b532ca0641e7d90d97fafe85ff014baa",
+        "LuaJIT-2.0.4.tar.gz"      : "d2abdf16bd3556c41c0aaedad76b6c227ca667be8350111d037a4c54fd43abad",
     }
 
+    def __init__(self, version):
+        super(LuaJIT, self).__init__(version)
+
+        if self.source_kind == "fixed" and self.version == "2.0.1":
+            # v2.0.1 tag is broken, use v2.0.1-fixed.
+            self.fixed_version = "2.0.1-fixed"
+
     def get_download_url(self):
-        return self.downloads + "/v" + self.version + ".tar.gz"
+        return self.downloads + "/v" + self.fixed_version + ".tar.gz"
 
     @staticmethod
     def major_version_from_version():
