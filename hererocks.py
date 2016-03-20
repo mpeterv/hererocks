@@ -249,7 +249,6 @@ class Program(object):
             return
 
         if self.source_kind == "git":
-            print("Warning: checksum of {} is not verified (git)".format(self.name))
             # Currently inside the cached git repo, just copy it somewhere.
             result_dir = os.path.join(temp_dir, self.name)
             copy_dir(".", result_dir)
