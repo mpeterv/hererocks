@@ -231,9 +231,11 @@ class Program(object):
     def get_download_name(self):
         return self.name + "-" + self.version + ("-win32" if self.win32_zip else "")
 
+    def get_file_name(self):
+        return self.get_download_name() + (".zip" if self.win32_zip else ".tar.gz")
+
     def get_download_url(self):
-        return self.downloads + "/" + self.get_download_name() + (
-            ".zip" if self.win32_zip else ".tar.gz")
+        return self.downloads + "/" + self.get_file_name()
 
     def fetch(self):
         if self.fetched:
@@ -249,7 +251,7 @@ class Program(object):
         if not os.path.exists(opts.downloads):
             os.makedirs(opts.downloads)
 
-        archive_name = os.path.join(opts.downloads, self.name + self.version)
+        archive_name = os.path.join(opts.downloads, self.get_file_name())
         url = self.get_download_url()
         message = "Fetching {} from {}".format(self.title, url)
 
