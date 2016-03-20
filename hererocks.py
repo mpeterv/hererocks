@@ -272,8 +272,13 @@ class Program(object):
         expected_checksum = self.checksums[self.get_file_name()]
         observed_checksum = sha256_of_file(archive_name)
         if expected_checksum != observed_checksum:
-            sys.exit("Error: SHA256 checksum mismatch for {}\nExpected: {}\nObserved: {}".format(
-                archive_name, expected_checksum, observed_checksum))
+            message = "SHA256 checksum mismatch for {}\nExpected: {}\nObserved: {}".format(
+                archive_name, expected_checksum, observed_checksum)
+
+            if opts.ignore_checksums:
+                print("Warning: " + message)
+            else:
+                sys.exit("Error: " + message)
 
         if self.win32_zip:
             archive = zipfile.ZipFile(archive_name)
@@ -872,6 +877,9 @@ def main():
                         help=argparse.SUPPRESS, default=get_default_cache())
     parser.add_argument("--no-git-cache",
                         help="Do not cache default git repos.",
+                        action="store_true", default=False)
+    parser.add_argument("--ignore-checksums",
+                        help="Ignore checksum mismatches for downloads.",
                         action="store_true", default=False)
     parser.add_argument("--builds",
                         # help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
