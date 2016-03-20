@@ -1,6 +1,10 @@
 language: python
 sudo: false
 
+os:
+  - linux
+  - osx
+
 cache:
   directories: test/cache
 
