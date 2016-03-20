@@ -386,6 +386,9 @@ class Lua(Program):
         if opts.cflags is not None:
             options.append(("cflags", opts.cflags))
 
+        if opts.no_readline:
+            options.append(("readline", "false"))
+
         if options:
             self.version_suffix += " (" + (", ".join(
                 opt + ": " + value for opt, value in options)) + ")"
@@ -518,6 +521,12 @@ class RioLua(Lua):
         else:
             self.dll_file = None
 
+    def set_identifiers(self):
+        super(RioLua, self).set_identifiers()
+
+        if self.identifiers is not None:
+            self.identifiers.append(str(not opts.no_readline))
+
     def major_version_from_version(self):
         return self.version[:3]
 
@@ -557,20 +566,34 @@ class RioLua(Lua):
         else:
             cc = "gcc"
 
-        if opts.target == "linux" or opts.target == "freebsd":
-            cflags = ["-DLUA_USE_LINUX"]
+        if opts.target in ["linux", "freebsd", "macosx"]:
+            cflags = ["-DLUA_USE_POSIX -DLUA_USE_DLOPEN"]
+
+            if self.major_version == "5.2":
+                cflags.append("-DLUA_USE_STRTODHEX -DLUA_USE_AFORMAT -DLUA_USE_LONGLONG")
+
+            if not opts.no_readline:
+                cflags.append("-DLUA_USE_READLINE")
 
             if opts.target == "linux":
-                if self.major_version == "5.1":
-                    lflags = ["-Wl,-E -ldl -lreadline -lhistory -lncurses"]
-                else:
-                    lflags = ["-Wl,-E -ldl -lreadline"]
+                lflags = ["-Wl,-E -ldl"]
+
+                if not opts.no_readline:
+                    if self.major_version == "5.1":
+                        lflags.append("-lreadline -lhistory -lncurses")
+                    else:
+                        lflags.append("-lreadline")
+            elif opts.target == "freebsd":
+                lflags = []
+
+                if not opts.no_readline:
+                    lflags.append("-Wl,-E -lreadline")
             else:
-                lflags = ["-Wl,-E -lreadline"]
-        elif opts.target == "macosx":
-            cflags = ["-DLUA_USE_MACOSX -DLUA_USE_READLINE"]
-            lflags = ["-lreadline"]
-            cc = "cc"
+                lflags = []
+                cc = "cc"
+
+                if not opts.no_readline:
+                    lflags.append("-lreadline")
         else:
             lflags = []
 
@@ -905,6 +928,8 @@ def main():
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
     parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
+    parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
+                        action="store_true", default=False)
     parser.add_argument("--downloads",
                         # help="Cache downloads in 'DOWNLOADS' directory.",
                         help=argparse.SUPPRESS, default=get_default_cache())

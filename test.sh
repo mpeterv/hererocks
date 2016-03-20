@@ -20,7 +20,7 @@ luarocks make
 hererocks-test | grep "2\.1"
 
 rm test/here -rf
-$HEREROCKS -l 5.1 --compat=none
+$HEREROCKS -l 5.1 --compat=none --no-readline
 lua -e "assert(not pcall(string.gfind, '', '.'))"
 lua -e "(function(...) assert(arg == nil) end)()"
 lua -e "assert(math.mod == nil)"
