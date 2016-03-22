@@ -885,7 +885,7 @@ def save_installed_identifiers(identifiers):
 
 def main():
     parser = argparse.ArgumentParser(
-        description=hererocks_version + " a tool for installing Lua and/or LuaRocks locally.",
+        description=hererocks_version + ", a tool for installing Lua and/or LuaRocks locally.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter, add_help=False)
     parser.add_argument(
         "location", help="Path to directory in which Lua and/or LuaRocks will be installed. "
@@ -925,7 +925,7 @@ def main():
     parser.add_argument(
         "--cflags", default=None,
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
-    parser.add_argument("--target", help="Use 'make TARGET' when building standard Lua.",
+    parser.add_argument("--target", help="Emulate 'make TARGET' when building standard Lua.",
                         default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
