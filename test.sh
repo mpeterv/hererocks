@@ -6,6 +6,7 @@ HEREROCKS="python hererocks.py test/here --downloads=test/cache --no-git-cache -
 rm -rf test/here
 $HEREROCKS -l^ -r^
 lua -v
+lua -e "assert(bit32)"
 luarocks --version
 luarocks make
 hererocks-test | tee test/tmp && grep "5\.3" test/tmp
@@ -27,7 +28,7 @@ lua -e "assert(math.mod == nil)"
 
 rm -rf test/here
 $HEREROCKS -l 5.3 --compat=none --builds=test/builds
-lua -e "assert(module == nil)"
+lua -e "assert(not bit32)"
 
 rm -rf test/here
 $HEREROCKS -l 5.3 --compat=none --builds=test/builds | tee test/tmp && grep "Building" test/tmp | grep "cached"

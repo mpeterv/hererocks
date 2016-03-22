@@ -542,23 +542,22 @@ class RioLua(Lua):
             self.compat = "default" if opts.compat in ["default", "5.2"] else opts.compat
 
     def add_compat_to_defines(self):
-        if self.compat != "default":
-            if self.major_version == "5.1":
-                if self.compat == "none":
-                    self.redefines.extend([
-                        "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD",
-                        "#undef LUA_COMPAT_LSTR", "#undef LUA_COMPAT_GFIND",
-                        "#undef LUA_COMPAT_OPENLIB"
-                    ])
-            elif self.major_version == "5.2":
-                self.defines.append("#undef LUA_COMPAT_ALL")
-            elif self.compat == "none":
-                self.defines.append("#undef LUA_COMPAT_5_2")
-            elif self.compat == "5.1":
-                self.defines.append("#undef LUA_COMPAT_5_2")
+        if self.major_version == "5.1":
+            if self.compat == "none":
+                self.redefines.extend([
+                    "#undef LUA_COMPAT_VARARG", "#undef LUA_COMPAT_MOD",
+                    "#undef LUA_COMPAT_LSTR", "#undef LUA_COMPAT_GFIND",
+                    "#undef LUA_COMPAT_OPENLIB"
+                ])
+        elif self.major_version == "5.2":
+            if self.compat == "default":
+                self.defines.append("#define LUA_COMPAT_ALL")
+        else:
+            if self.compat in ["5.1", "all"]:
                 self.defines.append("#define LUA_COMPAT_5_1")
-            else:
-                self.defines.append("#define LUA_COMPAT_5_1")
+
+            if self.compat in ["default", "5.2", "all"]:
+                self.defines.append("#define LUA_COMPAT_5_2")
 
     def make(self):
         if self.major_version == "5.3":
