@@ -93,7 +93,7 @@ def exec_command(capture, *args):
             return ""
 
         if not live_output:
-            sys.stdout.write(exception.output)
+            sys.stdout.write(exception.output.decode("UTF-8"))
 
         sys.exit("Error: got exitcode {} from command {}".format(
             exception.returncode, command))
