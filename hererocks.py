@@ -76,7 +76,8 @@ def get_default_cache():
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
 
-def exec_command(capture, *args, shell=True):
+def exec_command(capture, *args, **kwargs):
+    shell = kwargs.get("shell", True)
     command = " ".join(args) if shell else args
 
     if opts.verbose:
@@ -103,8 +104,8 @@ def exec_command(capture, *args, shell=True):
 
     return capture and output.decode("UTF-8")
 
-def run_command(*args, shell=True):
-    exec_command(False, *args, shell=True)
+def run_command(*args, **kwargs):
+    exec_command(False, *args, **kwargs)
 
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
@@ -849,7 +850,7 @@ class LuaRocks(Program):
             lua_binary = os.path.join(opts.location, "bin", exe(lua))
             if is_executable(lua_binary):
                 return exec_command(True, lua_binary, "-e",
-                        "print(_VERSION:sub(5))", shell=False).strip()
+                                    "print(_VERSION:sub(5))", shell=False).strip()
         raise "Could not locate the LUA binary!"
 
     def luarocks_help(self):
