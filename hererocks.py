@@ -902,9 +902,12 @@ class LuaRocks(Program):
             run(args)
 
             for script in ["luarocks.bat", "luarocks-admin.bat"]:
-                shutil.copy(
-                    os.path.join(opts.location, "luarocks", script),
-                    os.path.join(opts.location, "bin"))
+                for subdir in [".", "2.2", "2.1", "2.0"]:
+                    script_path = os.path.join(opts.location, "luarocks", subdir, script)
+
+                    if os.path.exists(script_path):
+                        shutil.copy(script_path, os.path.join(opts.location, "bin"))
+                        break
         else:
             print("Building LuaRocks" + self.version_suffix)
             run("./configure", "--prefix=" + opts.location,
