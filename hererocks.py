@@ -358,11 +358,11 @@ class Lua(Program):
         self.set_compat()
         self.add_options_to_version_suffix()
 
-        self.defines = []
         self.redefines = []
-        self.add_compat_to_defines()
+        self.compat_cflags = []
         self.set_package_paths()
-        self.add_package_paths_to_defines()
+        self.add_package_paths_redefines()
+        self.add_compat_cflags_and_redefines()
 
     @staticmethod
     def major_version_from_source():
@@ -422,7 +422,7 @@ class Lua(Program):
                                   os.path.join(".", "?" + so_extension))
         self.package_cpath = ";".join(cmodule_path_parts)
 
-    def add_package_paths_to_defines(self):
+    def add_package_paths_redefines(self):
         package_path = self.package_path.replace("\\", "\\\\")
         package_cpath = self.package_cpath.replace("\\", "\\\\")
         self.redefines.extend([
@@ -432,8 +432,7 @@ class Lua(Program):
             "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath)
         ])
 
-    def patch_defines(self):
-        defines = "\n".join(self.defines)
+    def patch_redefines(self):
         redefines = "\n".join(self.redefines)
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "rb")
@@ -441,15 +440,11 @@ class Lua(Program):
         luaconf_h.close()
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
-        header, _, main = body.partition(b"#define")
-        first_define, main = main.split(b"\n", 1)
 
         luaconf_h = open(os.path.join("src", "luaconf.h"), "wb")
-        luaconf_h.write(header + b"#define" + first_define + b"\n")
-        luaconf_h.write(defines.encode("UTF-8") + b"\n")
-        luaconf_h.write(main)
-        luaconf_h.write(redefines.encode("UTF-8") + b"\n")
-        luaconf_h.write(b"#endif")
+        luaconf_h.write(body)
+        luaconf_h.write(redefines.encode("UTF-8"))
+        luaconf_h.write(b"\n#endif")
         luaconf_h.write(tail)
         luaconf_h.close()
 
@@ -467,7 +462,7 @@ class Lua(Program):
 
         self.fetch()
         print("Building " + self.title + self.version_suffix)
-        self.patch_defines()
+        self.patch_redefines()
         self.make()
 
         if self.cached_build_path is not None:
@@ -549,7 +544,7 @@ class RioLua(Lua):
         else:
             self.compat = "default" if opts.compat in ["default", "5.2"] else opts.compat
 
-    def add_compat_to_defines(self):
+    def add_compat_cflags_and_redefines(self):
         if self.major_version == "5.1":
             if self.compat == "none":
                 self.redefines.extend([
@@ -559,13 +554,13 @@ class RioLua(Lua):
                 ])
         elif self.major_version == "5.2":
             if self.compat == "default":
-                self.defines.append("#define LUA_COMPAT_ALL")
+                self.compat_cflags.append("-DLUA_COMPAT_ALL")
         else:
             if self.compat in ["5.1", "all"]:
-                self.defines.append("#define LUA_COMPAT_5_1")
+                self.compat_cflags.append("-DLUA_COMPAT_5_1")
 
             if self.compat in ["default", "5.2", "all"]:
-                self.defines.append("#define LUA_COMPAT_5_2")
+                self.compat_cflags.append("-DLUA_COMPAT_5_2")
 
     def make(self):
         if self.major_version == "5.3":
@@ -608,6 +603,8 @@ class RioLua(Lua):
                 cflags = ["-DLUA_USE_POSIX"]
             else:
                 cflags = []
+
+        cflags.extend(self.compat_cflags)
 
         if opts.cflags is not None:
             cflags.extend(opts.cflags.split())
@@ -737,12 +734,16 @@ class LuaJIT(Lua):
     def set_compat(self):
         self.compat = "5.2" if opts.compat in ["all", "5.2"] else "default"
 
-    def add_compat_to_defines(self):
-        if self.compat != "default":
-            self.defines.append("#define LUAJIT_ENABLE_LUA52COMPAT")
+    def add_compat_cflags_and_redefines(self):
+        if self.compat == "5.2":
+            self.compat_cflags.append("-DLUAJIT_ENABLE_LUA52COMPAT")
 
-    @staticmethod
-    def make():
+    def make(self):
+        cflags = list(self.compat_cflags)
+
+        if opts.cflags is not None:
+            cflags.extend(opts.cflags.split())
+
         if opts.target == "cl":
             os.chdir("src")
             run("msvcbuild.bat")
@@ -753,10 +754,10 @@ class LuaJIT(Lua):
             else:
                 make = "make"
 
-            if opts.cflags is None:
+            if not cflags:
                 run(make)
             else:
-                run(make, "XCFLAGS=" + opts.cflags)
+                run(make, "XCFLAGS=" + " ".join(cflags))
 
     def make_install(self):
         luajit_file = exe("luajit")
