@@ -21,6 +21,6 @@ build_script: python hererocks.py here --%LUA% --luarocks ^^ --verbose
 test_script:
   - here\bin\lua -v
   - here\LuaRocks\luarocks --version
-  - here\LuaROcks\luarocks install lua-term 0.3
+  - here\LuaRocks\luarocks install lua-term 0.3
   - here\LuaRocks\luarocks install busted
   - here\bin\busted --version

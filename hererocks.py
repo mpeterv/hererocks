@@ -854,24 +854,21 @@ class LuaRocks(Program):
         return False
 
     def lua_version(self):
-        for lua in ("lua5.1", "lua", "luajit"):
+        for lua in ["lua5.1", "lua", "luajit"]:
             lua_binary = os.path.join(opts.location, "bin", exe(lua))
             if is_executable(lua_binary):
                 return get_output(lua_binary, "-e", "print(_VERSION:sub(5))")
 
         sys.exit("Error: could not locate Lua binary")
 
-    def luarocks_help(self):
-        return get_output("install.bat", "/?")
-
     def build(self):
         self.fetch()
-        if self.win32_zip:
+        if os.name == "nt":
             print("Building and installing LuaRocks" + self.version_suffix)
-            help_text = self.luarocks_help()
+            help_text = get_output("install.bat", "/?")
             args = [
                 "install.bat",
-                "/P", os.path.join(opts.location, "LuaRocks"),
+                "/P", os.path.join(opts.location, "luarocks"),
                 "/LUA", opts.location,
                 "/FORCECONFIG",
             ]
@@ -895,7 +892,7 @@ class LuaRocks(Program):
                 run("make", "build")
 
     def install(self):
-        if not self.win32_zip:
+        if os.name != "nt":
             print("Installing LuaRocks" + self.version_suffix)
             run("make", "install")
 
