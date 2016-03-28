@@ -738,6 +738,19 @@ class LuaJIT(Lua):
         if self.compat == "5.2":
             self.compat_cflags.append("-DLUAJIT_ENABLE_LUA52COMPAT")
 
+    def add_cflags_to_msvcbuild(self, cflags):
+        msvcbuild_file = open("msvcbuild.bat", "rb")
+        msvcbuild_src = msvcbuild_file.read()
+        msvcbuild_file.close()
+
+        start, assignment, value_and_rest = msvcbuild_src.partition(b"@set LJCOMPILE")
+
+        msvcbuild_file = open("msvcbuild.bat", "wb")
+        msvcbuild_file.write(start)
+        msvcbuild_file.write(assignment)
+        msvcbuild_file.write(value_and_rest.replace(b"\r\n", b" " + cflags.encode("UTF-8") + b"\r\n", 1))
+        msvcbuild_file.close()
+
     def make(self):
         cflags = list(self.compat_cflags)
 
@@ -746,6 +759,10 @@ class LuaJIT(Lua):
 
         if opts.target == "cl":
             os.chdir("src")
+
+            if cflags:
+                self.add_cflags_to_msvcbuild(" ".join(cflags))
+
             run("msvcbuild.bat")
             os.chdir("..")
         else:
