@@ -14,8 +14,14 @@ configuration:
 
 platform: x86
 
-before_build: '"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"'
+before_build: '"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat"'
 
-build_script: python hererocks.py here --%LUA% --verbose
+build_script: python hererocks.py here --%LUA% --luarocks ^^ --verbose
 
-test_script: here\bin\lua -v
+test_script:
+  - here\bin\lua -v
+  - here\LuaRocks\luarocks --version
+  - here\LuaRocks\luarocks install busted
+  - dir here
+  - dir here\bin
+  - dir here\LuaRocks
