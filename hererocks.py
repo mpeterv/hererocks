@@ -76,17 +76,18 @@ def get_default_cache():
 def quote(command_arg):
     return "'" + command_arg.replace("'", "'\"'\"'") + "'"
 
-def exec_command(capture, *args):
-    command = " ".join(args)
+def exec_command(capture, *args, **kwargs):
+    shell = kwargs.get("shell", True)
+    command = " ".join(args) if shell else args
 
     if opts.verbose:
-        print("Running " + command)
+        print("Running {}".format(command))
 
     live_output = opts.verbose and not capture
     runner = subprocess.check_call if live_output else subprocess.check_output
 
     try:
-        output = runner(command, stderr=subprocess.STDOUT, shell=True)
+        output = runner(command, stderr=subprocess.STDOUT, shell=shell)
     except subprocess.CalledProcessError as exception:
         if capture and not exception.output.strip():
             # Ignore errors if output is empty.
@@ -103,8 +104,8 @@ def exec_command(capture, *args):
 
     return capture and output.decode("UTF-8")
 
-def run_command(*args):
-    exec_command(False, *args)
+def run_command(*args, **kwargs):
+    exec_command(False, *args, **kwargs)
 
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
@@ -844,16 +845,47 @@ class LuaRocks(Program):
 
         return False
 
+    def lua_version(self):
+        for lua in ("lua5.1", "lua", "luajit"):
+            lua_binary = os.path.join(opts.location, "bin", exe(lua))
+            if is_executable(lua_binary):
+                return exec_command(True, lua_binary, "-e",
+                                    "print(_VERSION:sub(5))", shell=False).strip()
+        raise "Could not locate the LUA binary!"
+
+    def luarocks_help(self):
+        return exec_command(True, "install.bat", "/?").strip()
+
     def build(self):
         self.fetch()
-        print("Building LuaRocks" + self.version_suffix)
-        run_command("./configure", "--prefix=" + quote(opts.location),
-                    "--with-lua=" + quote(opts.location), "--force-config")
-        run_command("make" if self.is_luarocks_2_0() else "make build")
+        if self.win32_zip:
+            print("Building and installing LuaRocks" + self.version_suffix)
+            help_text = self.luarocks_help()
+            args = [
+                "install.bat",
+                "/P", os.path.join(opts.location, "LuaRocks"),
+                "/LUA", opts.location,
+                "/FORCECONFIG",
+            ]
+            if opts.target == "mingw":
+                args += ["/MW"]
+            # Since LuaRocks 2.0.13
+            if "/LV" in help_text:
+                args += ["/LV", self.lua_version()]
+            # Since LuaRocks 2.1.2
+            if "/NOREG" in help_text:
+                args += ["/NOREG", "/Q"]
+            run_command(*args, shell=False)
+        else:
+            print("Building LuaRocks" + self.version_suffix)
+            run_command("./configure", "--prefix=" + quote(opts.location),
+                        "--with-lua=" + quote(opts.location), "--force-config")
+            run_command("make" if self.is_luarocks_2_0() else "make build")
 
     def install(self):
-        print("Installing LuaRocks" + self.version_suffix)
-        run_command("make install")
+        if not self.win32_zip:
+            print("Installing LuaRocks" + self.version_suffix)
+            run_command("make install")
 
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
