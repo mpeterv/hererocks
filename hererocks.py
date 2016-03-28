@@ -858,7 +858,8 @@ class LuaRocks(Program):
             lua_binary = os.path.join(opts.location, "bin", exe(lua))
             if is_executable(lua_binary):
                 return get_output(lua_binary, "-e", "print(_VERSION:sub(5))")
-        raise "Could not locate the LUA binary!"
+
+        sys.exit("Error: could not locate Lua binary")
 
     def luarocks_help(self):
         return get_output("install.bat", "/?")
