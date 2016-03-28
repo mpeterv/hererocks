@@ -882,7 +882,7 @@ class LuaRocks(Program):
             # Since LuaRocks 2.1.2
             if "/NOREG" in help_text:
                 args += ["/NOREG", "/Q"]
-            run_command(*args, shell=False)
+            run_command(args)
         else:
             print("Building LuaRocks" + self.version_suffix)
             run_command("./configure", "--prefix=" + opts.location,
