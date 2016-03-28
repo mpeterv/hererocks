@@ -898,7 +898,13 @@ class LuaRocks(Program):
             # Since LuaRocks 2.1.2
             if "/NOREG" in help_text:
                 args += ["/NOREG", "/Q"]
+
             run(args)
+
+            for script in ["luarocks.bat", "luarocks-admin.bat"]:
+                shutil.copy(
+                    os.path.join(opts.location, "luarocks", script),
+                    os.path.join(opts.location, "bin"))
         else:
             print("Building LuaRocks" + self.version_suffix)
             run("./configure", "--prefix=" + opts.location,

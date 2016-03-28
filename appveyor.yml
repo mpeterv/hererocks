@@ -19,8 +19,9 @@ before_build: '"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall
 build_script: python hererocks.py here --%LUA% --luarocks ^^ --verbose
 
 test_script:
-  - here\bin\lua -v
-  - here\LuaRocks\luarocks --version
-  - here\LuaRocks\luarocks install lua-term 0.3
-  - here\LuaRocks\luarocks install busted
-  - here\bin\busted --version
+  - PATH %CD%\here\bin;%PATH%
+  - lua -v
+  - luarocks --version
+  - luarocks install lua-term 0.3
+  - luarocks install busted
+  - busted --version
