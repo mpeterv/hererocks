@@ -73,21 +73,27 @@ def get_default_cache():
     else:
         return os.path.join(os.getenv("HOME"), ".cache", "hererocks")
 
-def quote(command_arg):
-    return "'" + command_arg.replace("'", "'\"'\"'") + "'"
+def exec_command(capture, *args):
+    """Execute a command.
 
-def exec_command(capture, *args, **kwargs):
-    shell = kwargs.get("shell", True)
-    command = " ".join(args) if shell else args
+    Command can be passed as several arguments, each being a string
+    or a list of strings; lists are flattened.
+    If opts.verbose is True, output of the command is shown.
+    If the command exits with non-zero, print an error message and exit.
+    If capture is True, output is returned. Additionally, non-zero exit code
+    with empty output is ignored.
+    """
+
+    args = [arg for arglist in args for arg in ([arglist] if isinstance(arglist, str) else arglist)]
 
     if opts.verbose:
-        print("Running {}".format(command))
+        print("Running {}".format(" ".join(args)))
 
     live_output = opts.verbose and not capture
     runner = subprocess.check_call if live_output else subprocess.check_output
 
     try:
-        output = runner(command, stderr=subprocess.STDOUT, shell=shell)
+        output = runner(args, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as exception:
         if capture and not exception.output.strip():
             # Ignore errors if output is empty.
@@ -97,15 +103,15 @@ def exec_command(capture, *args, **kwargs):
             sys.stdout.write(exception.output.decode("UTF-8"))
 
         sys.exit("Error: got exitcode {} from command {}".format(
-            exception.returncode, command))
+            exception.returncode, args))
 
     if opts.verbose and capture:
         sys.stdout.write(output.decode("UTF-8"))
 
     return capture and output.decode("UTF-8")
 
-def run_command(*args, **kwargs):
-    exec_command(False, *args, **kwargs)
+def run_command(*args):
+    exec_command(False, *args)
 
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
@@ -121,7 +127,7 @@ def set_git_branch_accepts_tags():
     global git_branch_accepts_tags
 
     if git_branch_accepts_tags is None:
-        version_output = exec_command(True, "git --version")
+        version_output = exec_command(True, "git", "--version")
         match = re.search("(\d+)\.(\d+)\.?(\d*)", version_output)
 
         if match:
@@ -134,23 +140,23 @@ def set_git_branch_accepts_tags():
 def git_clone_command(repo, ref, is_cache):
     if is_cache:
         # Cache full repos.
-        return "git clone", True
+        return ["git", "clone"], True
 
     # Http(s) transport may be dumb and not understand --depth.
     if repo.startswith("http://") or repo.startswith("https://"):
         if not any(map(repo.startswith, clever_http_git_whitelist)):
-            return "git clone", True
+            return ["git", "clone"], True
 
     # Have to clone whole repo to get a specific commit.
     if all(c in string.hexdigits for c in ref):
-        return "git clone", True
+        return ["git", "clone"], True
 
     set_git_branch_accepts_tags()
 
     if git_branch_accepts_tags:
-        return "git clone --depth=1 --branch=" + quote(ref), False
+        return ["git", "clone", "--depth=1", "--branch=" + ref], False
     else:
-        return "git clone --depth=1", True
+        return ["git", "clone", "--depth=1"], True
 
 def escape_identifier(s):
     return re.sub("[^\w]", "_", s)
@@ -205,7 +211,7 @@ class Program(object):
 
             # Have to clone the repo to get the commit ref points to.
             self.fetch_repo(ref)
-            self.commit = exec_command(True, "git rev-parse HEAD").strip()
+            self.commit = exec_command(True, "git", "rev-parse", "HEAD").strip()
             self.version_suffix = " @" + self.commit[:7]
         else:
             # Local directory.
@@ -237,14 +243,14 @@ class Program(object):
                 # Sync with origin first.
                 os.chdir(repo_path)
 
-                if not exec_command(True, "git rev-parse --quiet --verify", quote(ref)):
-                    run_command("git fetch")
+                if not exec_command(True, "git", "rev-parse", "--quiet", "--verify", ref):
+                    run_command("git", "fetch")
 
-                run_command("git checkout", quote(ref))
+                run_command("git", "checkout", ref)
 
                 # If HEAD is not detached, we are on a branch that must be synced.
-                if exec_command(True, "git symbolic-ref -q HEAD"):
-                    run_command("git pull --rebase")
+                if exec_command(True, "git", "symbolic-ref", "-q", "HEAD"):
+                    run_command("git", "pull", "--rebase")
 
                 return
         else:
@@ -253,11 +259,11 @@ class Program(object):
 
         print(message)
         clone_command, need_checkout = git_clone_command(self.repo, ref, not self.fetched)
-        run_command(clone_command, quote(self.repo), quote(repo_path))
+        run_command(clone_command, self.repo, repo_path)
         os.chdir(repo_path)
 
         if need_checkout and ref != "master":
-            run_command("git checkout", quote(ref))
+            run_command("git", "checkout", ref)
 
     def get_download_name(self):
         return self.name + "-" + self.fixed_version + ("-win32" if self.win32_zip else "")
@@ -562,32 +568,32 @@ class RioLua(Lua):
 
     def make(self):
         if self.major_version == "5.3":
-            cc = "gcc -std=gnu99"
+            cc = ["gcc", "-std=gnu99"]
         else:
             cc = "gcc"
 
         if opts.target in ["linux", "freebsd", "macosx"]:
-            cflags = ["-DLUA_USE_POSIX -DLUA_USE_DLOPEN"]
+            cflags = ["-DLUA_USE_POSIX", "-DLUA_USE_DLOPEN"]
 
             if self.major_version == "5.2":
-                cflags.append("-DLUA_USE_STRTODHEX -DLUA_USE_AFORMAT -DLUA_USE_LONGLONG")
+                cflags.extend(["-DLUA_USE_STRTODHEX", "-DLUA_USE_AFORMAT", "-DLUA_USE_LONGLONG"])
 
             if not opts.no_readline:
                 cflags.append("-DLUA_USE_READLINE")
 
             if opts.target == "linux":
-                lflags = ["-Wl,-E -ldl"]
+                lflags = ["-Wl,-E", "-ldl"]
 
                 if not opts.no_readline:
                     if self.major_version == "5.1":
-                        lflags.append("-lreadline -lhistory -lncurses")
+                        lflags.extend(["-lreadline", "-lhistory", "-lncurses"])
                     else:
                         lflags.append("-lreadline")
             elif opts.target == "freebsd":
                 lflags = []
 
                 if not opts.no_readline:
-                    lflags.append("-Wl,-E -lreadline")
+                    lflags.extend(["-Wl,-E", "-lreadline"])
             else:
                 lflags = []
                 cc = "cc"
@@ -603,26 +609,22 @@ class RioLua(Lua):
                 cflags = []
 
         if opts.cflags is not None:
-            cflags.append(opts.cflags)
+            cflags.extend(opts.cflags.split())
 
         if opts.target == "cl":
-            cc = "cl /nologo /MD /O2 /W3 /c /D_CRT_SECURE_NO_DEPRECATE"
+            cc = ["cl", "/nologo", "/MD", "/O2", "/W3", "/c", "/D_CRT_SECURE_NO_DEPRECATE"]
         else:
-            cflags.insert(0, "-O2 -Wall -Wextra")
+            cflags = ["-O2", "-Wall", "-Wextra"] + cflags
 
-        static_cflags = " ".join(cflags)
+        lflags.append("-lm")
+        static_cflags = list(cflags)
 
         if opts.target == "mingw":
-            cflags.insert(1, "-DLUA_BUILD_AS_DLL")
+            cflags.insert(3, "-DLUA_BUILD_AS_DLL")
         elif opts.target == "cl":
             cflags.insert(0, "-DLUA_BUILD_AS_DLL")
 
-        cflags = " ".join(cflags)
-        lflags.append("-lm")
-        lflags = " ".join(lflags)
-
         os.chdir("src")
-
         objs = []
         luac_objs = ["luac" + objext(), "print" + objext()]
 
@@ -633,40 +635,40 @@ class RioLua(Lua):
                 obj = base + objext()
                 objs.append(obj)
 
-                cmd_suffix = src if opts.target == "cl" else ("-c -o " + obj + " " + src)
+                cmd_suffix = src if opts.target == "cl" else ["-c", "-o", obj, src]
                 run_command(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
 
         lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and (obj_ != "lua" + objext())]
-        luac_objs = "luac" + objext()
+        luac_objs = ["luac" + objext()]
 
         if "print" + objext() in objs:
-            luac_objs += " print" + objext()
+            luac_objs.append("print" + objext())
 
         if opts.target == "cl":
-            run_command("link /nologo /out:luac.exe", luac_objs, *lib_objs)
+            run_command("link", "/nologo", "/out:luac.exe", luac_objs, lib_objs)
 
             if os.path.exists("luac.exe.manifest"):
-                run_command("mt /nologo -manifest luac.exe.manifest -outputresource:luac.exe")
+                run_command("mt", "/nologo", "-manifest", "luac.exe.manifest", "-outputresource:luac.exe")
         else:
-            run_command("ar rcu", self.arch_file, *lib_objs)
+            run_command("ar", "rcu", self.arch_file, lib_objs)
             run_command("ranlib", self.arch_file)
             run_command(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
 
         if opts.target == "mingw":
-            run_command(cc + " -shared -o", self.dll_file, *lib_objs)
-            run_command("strip --strip-unneeded", self.dll_file)
-            run_command(cc, "-o", self.lua_file, "-s lua.o", self.dll_file)
+            run_command(cc, "-shared", "-o", self.dll_file, lib_objs)
+            run_command("strip", "--strip-unneeded", self.dll_file)
+            run_command(cc, "-o", self.lua_file, "-s", "lua.o", self.dll_file)
         elif opts.target == "cl":
-            run_command("link /nologo /DLL /out:" + self.dll_file, *lib_objs)
+            run_command("link", "/nologo", "/DLL", "/out:" + self.dll_file, lib_objs)
 
             if os.path.exists(self.dll_file + ".manifest"):
-                run_command("mt /nologo -manifest " + self.dll_file +
-                            ".manifest -outputresource:" + self.dll_file)
+                run_command("mt", "/nologo", "-manifest", self.dll_file + ".manifest",
+                            "-outputresource:" + self.dll_file)
 
-            run_command("link /nologo /out:lua.exe lua.obj", self.arch_file)
+            run_command("link", "/nologo", "/out:lua.exe", "lua.obj", self.arch_file)
 
             if os.path.exists("lua.exe.manifest"):
-                run_command("mt /nologo -manifest lua.exe.manifest -outputresource:lua.exe")
+                run_command("mt", "/nologo", "-manifest", "lua.exe.manifest", "-outputresource:lua.exe")
         else:
             run_command(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
 
@@ -745,10 +747,15 @@ class LuaJIT(Lua):
             run_command("msvcbuild.bat")
             os.chdir("..")
         else:
-            make = "mingw32-make" if (
-                opts.target == "mingw" and
-                program_exists("mingw32-make")) else "make"
-            run_command(make if opts.cflags is None else make + " XCFLAGS=" + quote(opts.cflags))
+            if opts.target == "mingw" and program_exists("mingw32-make"):
+                make = "mingw32-make"
+            else:
+                make = "make"
+
+            if opts.cflags is None:
+                run_command(make)
+            else:
+                run_command(make, "XCFLAGS=" + opts.cflags)
 
     def make_install(self):
         luajit_file = exe("luajit")
@@ -850,7 +857,7 @@ class LuaRocks(Program):
             lua_binary = os.path.join(opts.location, "bin", exe(lua))
             if is_executable(lua_binary):
                 return exec_command(True, lua_binary, "-e",
-                                    "print(_VERSION:sub(5))", shell=False).strip()
+                                    "print(_VERSION:sub(5))").strip()
         raise "Could not locate the LUA binary!"
 
     def luarocks_help(self):
@@ -878,14 +885,18 @@ class LuaRocks(Program):
             run_command(*args, shell=False)
         else:
             print("Building LuaRocks" + self.version_suffix)
-            run_command("./configure", "--prefix=" + quote(opts.location),
-                        "--with-lua=" + quote(opts.location), "--force-config")
-            run_command("make" if self.is_luarocks_2_0() else "make build")
+            run_command("./configure", "--prefix=" + opts.location,
+                        "--with-lua=" + opts.location, "--force-config")
+
+            if self.is_luarocks_2_0():
+                run_command("make")
+            else:
+                run_command("make", "build")
 
     def install(self):
         if not self.win32_zip:
             print("Installing LuaRocks" + self.version_suffix)
-            run_command("make install")
+            run_command("make", "install")
 
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
