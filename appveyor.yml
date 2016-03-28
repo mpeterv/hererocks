@@ -23,6 +23,4 @@ test_script:
   - here\LuaRocks\luarocks --version
   - here\LuaROcks\luarocks install lua-term 0.3
   - here\LuaRocks\luarocks install busted
-  - dir here
-  - dir here\bin
-  - dir here\LuaRocks
+  - here\bin\busted --version
