@@ -997,6 +997,7 @@ def main():
         "--cflags", default=None,
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
     parser.add_argument("--target", help="Emulate 'make TARGET' when building standard Lua.",
+                        choices=["linux", "macosx", "freebsd", "cl", "mingw", "posix", "generic"],
                         default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
