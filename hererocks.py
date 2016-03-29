@@ -375,6 +375,8 @@ class Lua(Program):
             if match:
                 return "5." + match.group(1)
 
+        sys.exit("Error: couldn't infer Lua major version from lua.h")
+
     def set_identifiers(self):
         super(Lua, self).set_identifiers()
 
