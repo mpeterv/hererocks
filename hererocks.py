@@ -122,12 +122,12 @@ clever_http_git_whitelist = [
     "http://bitbucket.com/", "https://bitbucket.com/"
 ]
 
-git_branch_accepts_tags = None
+git_branch_does_accept_tags = None
 
-def set_git_branch_accepts_tags():
-    global git_branch_accepts_tags
+def git_branch_accepts_tags():
+    global git_branch_does_accept_tags
 
-    if git_branch_accepts_tags is None:
+    if git_branch_does_accept_tags is None:
         version_output = get_output("git", "--version")
         match = re.search("(\d+)\.(\d+)\.?(\d*)", version_output)
 
@@ -135,8 +135,11 @@ def set_git_branch_accepts_tags():
             major = int(match.group(1))
             minor = int(match.group(2))
             tiny = int(match.group(3) or "0")
-            git_branch_accepts_tags = major > 1 or (
-                major == 1 and (minor > 7 or (minor == 7 and tiny >= 10)))
+            git_branch_does_accept_tags = (major, minor, tiny) >= (1, 7, 10)
+        else:
+            git_branch_does_accept_tags = False
+
+    return git_branch_does_accept_tags
 
 def git_clone_command(repo, ref, is_cache):
     if is_cache:
@@ -152,9 +155,7 @@ def git_clone_command(repo, ref, is_cache):
     if all(c in string.hexdigits for c in ref):
         return ["git", "clone"], True
 
-    set_git_branch_accepts_tags()
-
-    if git_branch_accepts_tags:
+    if git_branch_accepts_tags():
         return ["git", "clone", "--depth=1", "--branch=" + ref], False
     else:
         return ["git", "clone", "--depth=1"], True
