@@ -4,22 +4,19 @@ shallow_clone: true
 
 environment:
   matrix:
-  - LUA: "lua 5.1"
-  - LUA: "lua 5.2"
-  - LUA: "lua 5.3"
-  - LUA: "luajit 2.0"
+  - Lua: lua 5.3
+  - Lua: luajit 2.0
 
 configuration:
-- 2015
+  - vs08_32
+  - vs15_64
+  - mingw
 
-platform: x86
-
-before_build: '"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat"'
-
-build_script: python hererocks.py here --%LUA% --luarocks ^^ --verbose
+build_script:
+  - PATH %CD%\here\bin;C:\mingw\bin;%PATH%
+  - python hererocks.py here --%Lua% --luarocks ^^ --verbose --target=%Configuration%
 
 test_script:
-  - PATH %CD%\here\bin;%PATH%
   - lua -v
   - luarocks --version
   - luarocks install lua-term 0.3

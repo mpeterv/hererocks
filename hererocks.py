@@ -53,10 +53,13 @@ def program_exists(prog):
 
 platform_to_lua_target = {
     "linux": "linux",
-    "win": "cl" if os.name == "nt" and program_exists("cl") else "mingw",
+    "win": "mingw" if os.name == "nt" and program_exists("gcc") and not program_exists("cl") else "vs15_32",
     "darwin": "macosx",
     "freebsd": "freebsd"
 }
+
+def using_cl():
+    return opts.target.startswith("vs")
 
 def get_default_lua_target():
     for platform, lua_target in platform_to_lua_target.items():
@@ -85,7 +88,7 @@ def run(*args, **kwargs):
     """
 
     capture = kwargs.get("get_output", False)
-    args = [arg for arglist in args for arg in ([arglist] if isinstance(arglist, str) else arglist)]
+    args = [arg for arglist in args for arg in (arglist if isinstance(arglist, list) else [arglist])]
 
     if opts.verbose:
         print("Running {}".format(" ".join(args)))
@@ -181,7 +184,7 @@ def exe(name):
         return name
 
 def objext():
-    return ".obj" if opts.target == "cl" else ".o"
+    return ".obj" if using_cl() else ".o"
 
 def sha256_of_file(filename):
     fileobj = open(filename, "rb")
@@ -517,12 +520,12 @@ class RioLua(Lua):
         self.lua_file = exe("lua")
         self.luac_file = exe("luac")
 
-        if opts.target == "cl":
+        if using_cl():
             self.arch_file = "lua5" + self.major_version[2] + ".lib"
         else:
             self.arch_file = "liblua5" + self.major_version[2] + ".a"
 
-        if opts.target == "mingw" or opts.target == "cl":
+        if opts.target == "mingw" or using_cl():
             self.dll_file = "lua5" + self.major_version[2] + ".dll"
         else:
             self.dll_file = None
@@ -612,7 +615,7 @@ class RioLua(Lua):
         if opts.cflags is not None:
             cflags.extend(opts.cflags.split())
 
-        if opts.target == "cl":
+        if using_cl():
             cc = ["cl", "/nologo", "/MD", "/O2", "/W3", "/c", "/D_CRT_SECURE_NO_DEPRECATE"]
         else:
             cflags = ["-O2", "-Wall", "-Wextra"] + cflags
@@ -622,7 +625,7 @@ class RioLua(Lua):
 
         if opts.target == "mingw":
             cflags.insert(3, "-DLUA_BUILD_AS_DLL")
-        elif opts.target == "cl":
+        elif using_cl():
             cflags.insert(0, "-DLUA_BUILD_AS_DLL")
 
         os.chdir("src")
@@ -636,7 +639,7 @@ class RioLua(Lua):
                 obj = base + objext()
                 objs.append(obj)
 
-                cmd_suffix = src if opts.target == "cl" else ["-c", "-o", obj, src]
+                cmd_suffix = src if using_cl() else ["-c", "-o", obj, src]
                 run(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
 
         lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and (obj_ != "lua" + objext())]
@@ -645,7 +648,7 @@ class RioLua(Lua):
         if "print" + objext() in objs:
             luac_objs.append("print" + objext())
 
-        if opts.target == "cl":
+        if using_cl():
             run("link", "/nologo", "/out:luac.exe", luac_objs, lib_objs)
 
             if os.path.exists("luac.exe.manifest"):
@@ -659,7 +662,7 @@ class RioLua(Lua):
             run(cc, "-shared", "-o", self.dll_file, lib_objs)
             run("strip", "--strip-unneeded", self.dll_file)
             run(cc, "-o", self.lua_file, "-s", "lua.o", self.dll_file)
-        elif opts.target == "cl":
+        elif using_cl():
             run("link", "/nologo", "/DLL", "/out:" + self.dll_file, lib_objs)
 
             if os.path.exists(self.dll_file + ".manifest"):
@@ -760,7 +763,7 @@ class LuaJIT(Lua):
         if opts.cflags is not None:
             cflags.extend(opts.cflags.split())
 
-        if opts.target == "cl":
+        if using_cl():
             os.chdir("src")
 
             if cflags:
@@ -801,7 +804,9 @@ class LuaJIT(Lua):
                    "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp", "luajit.h")
 
         copy_files(os.path.join(opts.location, "lib"))
-        shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
+
+        if opts.target != "mingw":
+            shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
 
         if os.name != "nt":
             shutil.copy(so_file, os.path.join(opts.location, "lib", target_so_file))
@@ -954,7 +959,36 @@ def save_installed_identifiers(identifiers):
 
     manifest_h.close()
 
-def main():
+vs_year_to_version = {
+    "08": "9.0",
+    "10": "10.0",
+    "12": "11.0",
+    "13": "12.0",
+    "15": "14.0"
+}
+
+def get_vs_setup_cmd(target):
+    vs_version = vs_year_to_version[target[2:4]]
+    vcvarsall_path = "C:\\Program Files (x86)\\Microsoft Visual Studio {}\\VC\\vcvarsall.bat".format(vs_version)
+
+    if not os.path.exists(vcvarsall_path):
+        sys.exit("Error: couldn't set up Visual Studio: {} does not exist".format(vcvarsall_path))
+
+    cmd = 'call "{}"'.format(vcvarsall_path)
+
+    if target.endswith("64"):
+        cmd = cmd + " amd64"
+
+    return cmd
+
+class UseActualArgsFileAction(argparse.Action):
+    def __call__(self, parser, namespace, fname, option_string=None):
+        args_h = open(fname, "rb")
+        args_content = args_h.read().decode("UTF-8")
+        args_h.close()
+        main(args_content.split("\r\n")[1:])
+
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description=hererocks_version + ", a tool for installing Lua and/or LuaRocks locally.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter, add_help=False)
@@ -996,9 +1030,17 @@ def main():
     parser.add_argument(
         "--cflags", default=None,
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
-    parser.add_argument("--target", help="Emulate 'make TARGET' when building standard Lua.",
-                        choices=["linux", "macosx", "freebsd", "cl", "mingw", "posix", "generic"],
-                        default=get_default_lua_target())
+    parser.add_argument(
+        "--target", help="Select how to build Lua. "
+        "Windows-specific targets (mingw and vsXX_YY) also affect LuaJIT. "
+        "vsXX_YY targets set up Visual Studio 20XX (YYbit) automatically "
+        "and use cl.exe as compiler. "
+        "macosx target uses cc and the remaining targets use gcc, passing compiler "
+        "and linker flags the same way Lua's Makefile does when running make <target>.",
+        choices=[
+            "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw",
+            "vs08_32", "vs10_32", "vs12_32", "vs12_64", "vs13_32", "vs13_64", "vs15_32", "vs15_64"
+        ], default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
     parser.add_argument("--downloads",
@@ -1019,22 +1061,59 @@ def main():
                         action="version", version=hererocks_version)
     parser.add_argument("-h", "--help", help="Show this help message and exit.", action="help")
 
-    global opts, temp_dir
-    opts = parser.parse_args()
+    if os.name == "nt" and argv is None:
+        parser.add_argument("--actual-argv-file", action=UseActualArgsFileAction,
+                            # help="Load argv from a file, used when setting up cl toolchain."
+                            help=argparse.SUPPRESS)
+
+    global opts
+    opts = parser.parse_args(argv)
     if not opts.lua and not opts.luajit and not opts.luarocks:
         parser.error("nothing to install")
 
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
+    global temp_dir
+    temp_dir = tempfile.mkdtemp()
+
+    # If using vsXX_YY target, set VS up by writing a .bat file calling corresponding vcvarsall.bat
+    # before recursively calling hererocks, passing arguments through a temporary file using
+    # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
+    if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
+        bat_name = os.path.join(temp_dir, "hererocks.bat")
+        argv_name = os.path.join(temp_dir, "argv")
+
+        bat_h = open(bat_name, "wb")
+        bat_h.write(b"@echo off\r\n")
+        vs_setup_cmd = get_vs_setup_cmd(opts.target)
+        bat_h.write(vs_setup_cmd.encode("UTF-8") + b"\r\n")
+
+        script_arg = '"' + sys.argv[0] + '"'
+
+        if sys.executable:
+            script_arg = '"' + sys.executable + '" ' + script_arg
+
+        recursive_call = script_arg + ' --actual-argv-file "' + argv_name + '"\r\n'
+
+        bat_h.write(recursive_call.encode("UTF-8"))
+        bat_h.close()
+
+        argv_h = open(argv_name, "wb")
+        argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
+        argv_h.close()
+
+        exit_code = subprocess.call([bat_name])
+        shutil.rmtree(temp_dir)
+        sys.exit(exit_code)
+
+    start_dir = os.getcwd()
     opts.location = os.path.abspath(opts.location)
     opts.downloads = os.path.abspath(opts.downloads)
 
     if opts.builds is not None:
         opts.builds = os.path.abspath(opts.builds)
 
-    start_dir = os.getcwd()
-    temp_dir = tempfile.mkdtemp()
     identifiers = get_installed_identifiers()
     identifiers_changed = False
 
@@ -1062,6 +1141,7 @@ def main():
 
     shutil.rmtree(temp_dir)
     print("Done.")
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
