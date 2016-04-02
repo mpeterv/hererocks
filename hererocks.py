@@ -107,7 +107,7 @@ def run(*args, **kwargs):
             sys.stdout.write(exception.output.decode("UTF-8"))
 
         sys.exit("Error: got exitcode {} from command {}".format(
-            exception.returncode, args))
+            exception.returncode, " ".join(args)))
 
     if opts.verbose and capture:
         sys.stdout.write(output.decode("UTF-8"))
