@@ -391,7 +391,7 @@ class Lua(Program):
     def add_options_to_version_suffix(self):
         options = []
 
-        if opts.target != get_default_lua_target():
+        if os.name == "nt" or opts.target != get_default_lua_target():
             options.append(("target", opts.target))
 
         if self.compat != "default":
