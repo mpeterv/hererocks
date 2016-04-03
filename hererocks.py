@@ -1030,7 +1030,7 @@ def get_vs_setup_cmd(vs_version, arch):
         vcvars_all_path = os.path.join(vs_directory, "vcvarsall.bat")
 
         if check_existence(vcvars_all_path):
-            return 'call "{}"{}'.format(vcvars_all_path, " amd64" if arch == "x64" else "")
+            return 'call "{}"{}'.format(vcvars_all_path, " x86_amd64" if arch == "x64" else "")
 
         vcvars_arch_path = os.path.join(
             vs_directory, "bin", "amd64\\vcvars64.bat" if arch == "x64" else "vcvars32.bat")
