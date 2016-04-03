@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import argparse
 import hashlib
+import json
 import os
 import platform
 import re
@@ -194,11 +195,15 @@ def git_clone_command(repo, ref, is_cache):
     else:
         return ["git", "clone", "--depth=1"], True
 
-def escape_identifier(s):
+important_identifiers = [
+    "name", "source", "version", "repo", "commit", "target", "compat", "cflags", "readline", "location"
+]
+
+def escape_path(s):
     return re.sub(r"[^\w]", "_", s)
 
-def identifiers_to_string(identifiers):
-    return "-".join(identifiers)
+def hash_identifiers(identifiers):
+    return "-".join(escape_path(str(identifiers.get(name, ""))) for name in important_identifiers)
 
 def copy_files(path, *files):
     if not os.path.exists(path):
@@ -357,19 +362,23 @@ class Program(object):
         self.fetched = True
 
     def set_identifiers(self):
+        self.identifiers = {
+            "name": self.name,
+            "source": self.source
+        }
+
         if self.source == "release":
-            self.identifiers = [self.name, escape_identifier(self.version)]
+            self.identifiers["version"] = self.version
         elif self.source == "git":
-            self.identifiers = [self.name, "git", escape_identifier(self.repo), escape_identifier(self.commit)]
-        else:
-            self.identifiers = None
+            self.identifiers["repo"] = self.repo
+            self.identifiers["commit"] = self.commit
 
     def update_identifiers(self, all_identifiers):
         installed_identifiers = all_identifiers.get(self.name)
         self.set_identifiers()
 
-        if not opts.ignore_installed:
-            if self.identifiers is not None and self.identifiers == installed_identifiers:
+        if not opts.ignore_installed and self.source != "local" and installed_identifiers is not None:
+            if hash_identifiers(self.identifiers) == hash_identifiers(installed_identifiers):
                 print(self.title + self.version_suffix + " already installed")
                 return False
 
@@ -414,10 +423,10 @@ class Lua(Program):
     def set_identifiers(self):
         super(Lua, self).set_identifiers()
 
-        if self.identifiers is not None:
-            self.identifiers.extend(map(escape_identifier, [
-                opts.target, self.compat, opts.cflags or "", opts.location
-            ]))
+        self.identifiers["target"] = opts.target
+        self.identifiers["compat"] = self.compat
+        self.identifiers["cflags"] = opts.cflags or ""
+        self.identifiers["location"] = opts.location
 
     def add_options_to_version_suffix(self):
         options = []
@@ -486,9 +495,9 @@ class Lua(Program):
         luaconf_h.close()
 
     def build(self):
-        if opts.builds and self.identifiers is not None:
+        if opts.builds and self.source != "local":
             self.cached_build_path = os.path.join(opts.builds,
-                                                  identifiers_to_string(self.identifiers))
+                                                  hash_identifiers(self.identifiers))
 
             if os.path.exists(self.cached_build_path):
                 print("Building " + self.title + self.version_suffix + " (cached)")
@@ -564,8 +573,7 @@ class RioLua(Lua):
     def set_identifiers(self):
         super(RioLua, self).set_identifiers()
 
-        if self.identifiers is not None:
-            self.identifiers.append(str(not opts.no_readline))
+        self.identifiers["readline"] = not opts.no_readline
 
     def major_version_from_version(self):
         return self.version[:3]
@@ -971,26 +979,15 @@ def get_installed_identifiers():
     if not os.path.exists(get_manifest_name()):
         return {}
 
-    manifest_h = open(get_manifest_name())
-    identifiers = {}
+    with open(get_manifest_name()) as manifest_h:
+        try:
+            return json.load(manifest_h)
+        except ValueError:
+            return {}
 
-    for line in manifest_h:
-        cur_identifiers = line.strip().split("-")
-
-        if cur_identifiers:
-            identifiers[cur_identifiers[0]] = cur_identifiers
-
-    return identifiers
-
-def save_installed_identifiers(identifiers):
-    manifest_h = open(get_manifest_name(), "w")
-
-    for program in [RioLua, LuaJIT, LuaRocks]:
-        if identifiers.get(program.name) is not None:
-            manifest_h.write(identifiers_to_string(identifiers[program.name]))
-            manifest_h.write("\n")
-
-    manifest_h.close()
+def save_installed_identifiers(all_identifiers):
+    with open(get_manifest_name(), "w") as manifest_h:
+        json.dump(all_identifiers, manifest_h)
 
 vs_year_to_version = {
     "08": "9.0",
@@ -1236,12 +1233,16 @@ def main(argv=None):
         os.makedirs(opts.location)
 
     if opts.lua:
-        identifiers["LuaJIT"] = None
+        if "LuaJIT" in identifiers:
+            del identifiers["LuaJIT"]
+
         identifiers_changed = RioLua(opts.lua).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luajit:
-        identifiers["lua"] = None
+        if "lua" in identifiers:
+            del identifiers["lua"]
+
         identifiers_changed = LuaJIT(opts.luajit).update_identifiers(identifiers)
         os.chdir(start_dir)
 
