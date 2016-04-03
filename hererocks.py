@@ -21,6 +21,12 @@ try:
 except ImportError:
     from urllib.request import urlretrieve
 
+if os.name == "nt":
+    try:
+        import _winreg as winreg
+    except ImportError:
+        import winreg
+
 hererocks_version = "Hererocks 0.6.2"
 __all__ = ["main"]
 
@@ -116,6 +122,28 @@ def run(*args, **kwargs):
 
 def get_output(*args):
     return run(get_output=True, *args)
+
+def query_registry(key, value):
+    keys = [key, key.replace("\\", "\\Wow6432Node\\", 1)]
+
+    for candidate in keys:
+        if opts.verbose:
+            print("Querying registry key HKEY_LOCAL_MACHINE\\{}:{}".format(candidate, value))
+
+        try:
+            handle = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, candidate)
+        except WindowsError:
+            pass
+        else:
+            res = handler.QueryValueEx(handle, value)[0]
+            winreg.CloseKey(handle)
+            return res
+
+def check_existence(path):
+    if opts.verbose:
+        print("Checking existence of {}".format(path))
+
+    return os.path.exists(path)
 
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
@@ -967,19 +995,53 @@ vs_year_to_version = {
     "15": "14.0"
 }
 
+def get_vs_directory(vs_version):
+    keys = [
+        "Software\\Microsoft\\VisualStudio\\{}\\Setup\\VC".format(vs_version),
+        "Software\\Microsoft\\VCExpress\\{}\\Setup\\VS".format(vs_version)
+    ]
+
+    for key in keys:
+        vs_directory = query_registry(key, "ProductDir")
+
+        if vs_directory is not None:
+            return vs_directory
+
+def get_wsdk_directory(vs_version):
+    if vs_version == "9.0":
+        wsdk_version = "v6.1"
+    elif vs_version == "10.0":
+        wsdk_version = "v7.1"
+    else:
+        return
+
+    return query_registry(
+        "Software\\Microsoft\\Microsoft SDKs\\Windows\\{}".format(wsdk_version), "InstallationFolder")
+
 def get_vs_setup_cmd(target):
     vs_version = vs_year_to_version[target[2:4]]
-    vcvarsall_path = "C:\\Program Files (x86)\\Microsoft Visual Studio {}\\VC\\vcvarsall.bat".format(vs_version)
+    x64 = target.endswith("64")
 
-    if not os.path.exists(vcvarsall_path):
-        sys.exit("Error: couldn't set up Visual Studio: {} does not exist".format(vcvarsall_path))
+    vs_directory = get_vs_directory(vs_version)
 
-    cmd = 'call "{}"'.format(vcvarsall_path)
+    if vs_directory is not None:
+        vcvars_all_path = os.path.join(vs_directory, "vcvarsall.bat")
 
-    if target.endswith("64"):
-        cmd = cmd + " amd64"
+        if check_existence(vcvars_all_path):
+            return 'call "{}"{}'.format(vcvars_all_path, " amd64" if x64 else "")
 
-    return cmd
+        vcvars_arch_path = os.path.join(vs_directory, "bin", "amd64\\vcvars64.bat" if x64 else "vcvars32.bat")
+
+        if check_existence(vcvars_arch_path):
+            return 'call "{}"'.format(vcvars_arch_path)
+
+    wsdk_directory = get_windows_sdk_directory(vs_version)
+
+    if wsdk_directory is not None:
+        setenv_path = os.path.join(wsdk_directory, "bin", "setenv.cmd")
+
+        if check_existence(setenv_path):
+            return 'call "{}" /{}'.format(setenv_path, "x64" if x64 else "x86")
 
 class UseActualArgsFileAction(argparse.Action):
     def __call__(self, parser, namespace, fname, option_string=None):
@@ -1081,12 +1143,16 @@ def main(argv=None):
     # before recursively calling hererocks, passing arguments through a temporary file using
     # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
+        vs_setup_cmd = get_vs_setup_cmd(opts.target)
+
+        if vs_setup_cmd is None:
+            sys.exit("Error: couldn't set up Visual Studio")
+
         bat_name = os.path.join(temp_dir, "hererocks.bat")
         argv_name = os.path.join(temp_dir, "argv")
 
         bat_h = open(bat_name, "wb")
         bat_h.write(b"@echo off\r\n")
-        vs_setup_cmd = get_vs_setup_cmd(opts.target)
         bat_h.write(vs_setup_cmd.encode("UTF-8") + b"\r\n")
 
         script_arg = '"' + sys.argv[0] + '"'
