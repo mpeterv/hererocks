@@ -206,12 +206,19 @@ def hash_identifiers(identifiers):
         identifiers.get(name, "")) for name in important_identifiers + other_identifiers)
 
 def show_identifiers(identifiers):
+    title = identifiers["name"]
+
+    if "version" in identifiers:
+        title += " " + identifiers["version"]
+    elif "major version" in identifiers and title != "LuaJIT":
+        title += " " + identifiers["major version"]
+
     if identifiers["source"] == "release":
-        print("{} {}".format(identifiers["name"], identifiers["version"]))
+        print(title)
     elif identifiers["source"] == "git":
-        print("{} @{} (cloned from {})".format(identifiers["name"], identifiers["commit"][:7], identifiers["repo"]))
+        print("{} @{} (cloned from {})".format(title, identifiers["commit"][:7], identifiers["repo"]))
     else:
-        print("{} (from local sources)".format(identifiers["name"]))
+        print("{} (from local sources)".format(title))
 
     for name in other_identifiers:
         if identifiers.get(name):
@@ -386,6 +393,7 @@ class Program(object):
             self.identifiers["commit"] = self.commit
 
     def update_identifiers(self, all_identifiers):
+        self.all_identifiers = all_identifiers
         installed_identifiers = all_identifiers.get(self.name)
         self.set_identifiers()
 
@@ -439,6 +447,7 @@ class Lua(Program):
         self.identifiers["compat"] = self.compat
         self.identifiers["c flags"] = opts.cflags or ""
         self.identifiers["location"] = opts.location
+        self.identifiers["major version"] = self.major_version
 
     def add_options_to_version_suffix(self):
         options = []
@@ -934,19 +943,17 @@ class LuaRocks(Program):
 
         return False
 
-    @staticmethod
-    def lua_version():
-        for lua in ["lua5.1", "lua", "luajit"]:
-            lua_binary = os.path.join(opts.location, "bin", exe(lua))
-            if is_executable(lua_binary):
-                return get_output(lua_binary, "-e", "print(_VERSION:sub(5))")
-
-        sys.exit("Error: could not locate Lua binary")
-
     def build(self):
+        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
+
+        if lua_identifiers is None:
+            sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
+
         self.fetch()
+
         if os.name == "nt":
             print("Building and installing LuaRocks" + self.version_suffix)
+
             help_text = get_output("install.bat", "/?")
             args = [
                 "install.bat",
@@ -958,7 +965,7 @@ class LuaRocks(Program):
                 args += ["/MW"]
             # Since LuaRocks 2.0.13
             if "/LV" in help_text:
-                args += ["/LV", self.lua_version()]
+                args += ["/LV", lua_identifiers["major version"]]
             # Since LuaRocks 2.1.2
             if "/NOREG" in help_text:
                 args += ["/NOREG", "/Q"]
@@ -990,7 +997,7 @@ class LuaRocks(Program):
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
 
-manifest_version = 1
+manifest_version = 2
 
 def get_installed_identifiers():
     if not os.path.exists(get_manifest_name()):
