@@ -1147,17 +1147,18 @@ def main(argv=None):
     parser.add_argument(
         "--target", help="Select how to build Lua. "
         "Windows-specific targets (mingw, vs and vsXX_YY) also affect LuaJIT. "
-        "vs and vsXX_YY targets compile using cl.exe. "
+        "vs, vs_XX and vsXX_YY targets compile using cl.exe. "
         "vsXX_YY targets (such as vs15_32) always set up Visual Studio 20XX (YYbit). "
         "vs target sets up latest available Visual Studio with host architecture "
-        "unless cl.exe is already in PATH. "
+        "unless cl.exe is already in PATH. vs_32 and vs_64 targets do the same but use "
+        " fixed architecture, while vs target falls back to x86 for VS 2008 and 2010."
         "macosx target uses cc and the remaining targets use gcc, passing compiler "
         "and linker flags the same way Lua's Makefile does when running make <target>.",
         choices=[
-            "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw", "vs",
+            "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw", "vs", "vs_32", "vs_64",
             "vs08_32", "vs08_64", "vs10_32", "vs10_64", "vs12_32", "vs12_64",
             "vs13_32", "vs13_64", "vs15_32", "vs15_64"
-        ], metavar="{linux,macosx,freebsd,mingw,posix,generic,mingw,vs,vsXX_YY}",
+        ], metavar="{linux,macosx,freebsd,mingw,posix,generic,mingw,vs,vs_XX,vsXX_YY}",
         default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
@@ -1199,16 +1200,20 @@ def main(argv=None):
     # before recursively calling hererocks, passing arguments through a temporary file using
     # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
     # If using vs target, do nothing if cl.exe is in PATH and setup latest possible VS with host arch otherwise.
+    # vs_32 and vs_64 targets are same as vs but force an arch.
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        if opts.target == "vs":
+        if opts.target in ["vs", "vs_32", "vs_64"]:
             if program_exists("cl"):
                 print("Using cl.exe found in PATH.")
             else:
-                arch = "x64" if platform.machine().endswith("64") else "x86"
+                arch_bits = platform.machine() if opts.target == "vs" else opts.target
+                arch = "x64" if arch_bits.endswith("64") else "x86"
                 vs_versions = ["14.0", "12.0", "11.0", "10.0", "9.0"]
 
                 for vs_version in vs_versions:
-                    setup_vs_and_rerun(vs_version, "x86" if vs_version in ["9.0", "10.0"] else arch)
+                    setup_vs_and_rerun(
+                        vs_version,
+                        "x86" if opts.target == "vs" and vs_version in ["9.0", "10.0"] else arch)
 
                 sys.exit("Error: couldn't set up MSVC toolchain")
         else:
