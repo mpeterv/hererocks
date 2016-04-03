@@ -195,15 +195,27 @@ def git_clone_command(repo, ref, is_cache):
     else:
         return ["git", "clone", "--depth=1"], True
 
-important_identifiers = [
-    "name", "source", "version", "repo", "commit", "target", "compat", "cflags", "readline", "location"
-]
+important_identifiers = ["name", "source", "version", "repo", "commit", "location"]
+other_identifiers = ["target", "compat", "c flags", "readline"]
 
 def escape_path(s):
     return re.sub(r"[^\w]", "_", s)
 
 def hash_identifiers(identifiers):
-    return "-".join(escape_path(str(identifiers.get(name, ""))) for name in important_identifiers)
+    return "-".join(escape_path(
+        identifiers.get(name, "")) for name in important_identifiers + other_identifiers)
+
+def show_identifiers(identifiers):
+    if identifiers["source"] == "release":
+        print("{} {}".format(identifiers["name"], identifiers["version"]))
+    elif identifiers["source"] == "git":
+        print("{} @{} (cloned from {})".format(identifiers["name"], identifiers["commit"][:7], identifiers["repo"]))
+    else:
+        print("{} (from local sources)".format(identifiers["name"]))
+
+    for name in other_identifiers:
+        if identifiers.get(name):
+            print("    {}: {}".format(name.capitalize(), identifiers[name]))
 
 def copy_files(path, *files):
     if not os.path.exists(path):
@@ -363,7 +375,7 @@ class Program(object):
 
     def set_identifiers(self):
         self.identifiers = {
-            "name": self.name,
+            "name": self.title,
             "source": self.source
         }
 
@@ -425,7 +437,7 @@ class Lua(Program):
 
         self.identifiers["target"] = opts.target
         self.identifiers["compat"] = self.compat
-        self.identifiers["cflags"] = opts.cflags or ""
+        self.identifiers["c flags"] = opts.cflags or ""
         self.identifiers["location"] = opts.location
 
     def add_options_to_version_suffix(self):
@@ -573,7 +585,7 @@ class RioLua(Lua):
     def set_identifiers(self):
         super(RioLua, self).set_identifiers()
 
-        self.identifiers["readline"] = not opts.no_readline
+        self.identifiers["readline"] = str(not opts.no_readline).lower()
 
     def major_version_from_version(self):
         return self.version[:3]
@@ -1133,6 +1145,8 @@ def main(argv=None):
         "the 'luarocks-3' branch of the standard LuaRocks git repo. "
         "Note that Lua 5.2 is not supported in LuaRocks 2.0.8 "
         "and Lua 5.3 is supported only since LuaRocks 2.2.0.")
+    parser.add_argument("--show", default=False, action="store_true",
+                        help="Instead of installing show programs already present in <location>")
     parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
                         help="Install even if requested version is already present.")
     parser.add_argument(
@@ -1184,11 +1198,31 @@ def main(argv=None):
 
     global opts
     opts = parser.parse_args(argv)
-    if not opts.lua and not opts.luajit and not opts.luarocks:
-        parser.error("nothing to install")
+    if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show:
+        parser.error("nothing to do")
 
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
+
+    if (opts.lua or opts.luajit or opts.luarocks) and opts.show:
+        parser.error("can't both install and show")
+
+    if opts.show:
+        if os.path.exists(opts.location):
+            all_identifiers = get_installed_identifiers()
+
+            if all_identifiers:
+                print("Programs installed in {}:".format(opts.location))
+
+                for program in [RioLua, LuaJIT, LuaRocks]:
+                    if program.name in all_identifiers:
+                        show_identifiers(all_identifiers[program.name])
+            else:
+                print("No programs installed in {}.".format(opts.location))
+        else:
+            print("Location does not exist.")
+
+        sys.exit(0)
 
     global temp_dir
     temp_dir = tempfile.mkdtemp()

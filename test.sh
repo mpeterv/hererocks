@@ -32,3 +32,4 @@ lua -e "assert(not bit32)"
 
 rm -rf test/here
 $HEREROCKS -l 5.3 --compat=none --builds=test/builds | tee test/tmp && grep "Building" test/tmp | grep "cached"
+$HEREROCKS --show
