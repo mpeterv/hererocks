@@ -135,7 +135,7 @@ def query_registry(key, value):
         except WindowsError:
             pass
         else:
-            res = handler.QueryValueEx(handle, value)[0]
+            res = winreg.QueryValueEx(handle, value)[0]
             winreg.CloseKey(handle)
             return res
 
