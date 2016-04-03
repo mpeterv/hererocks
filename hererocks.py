@@ -114,6 +114,8 @@ def run(*args, **kwargs):
 
         sys.exit("Error: got exitcode {} from command {}".format(
             exception.returncode, " ".join(args)))
+    except OSError:
+        sys.exit("Error: couldn't run {}: is {} in PATH?".format(" ".join(args), args[0]))
 
     if opts.verbose and capture:
         sys.stdout.write(output.decode("UTF-8"))
