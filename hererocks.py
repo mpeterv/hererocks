@@ -1148,15 +1148,17 @@ def main(argv=None):
         "--target", help="Select how to build Lua. "
         "Windows-specific targets (mingw, vs and vsXX_YY) also affect LuaJIT. "
         "vs and vsXX_YY targets compile using cl.exe. "
-        "vsXX_YY targets always set up Visual Studio 20XX (YYbit). "
+        "vsXX_YY targets (such as vs15_32) always set up Visual Studio 20XX (YYbit). "
         "vs target sets up latest available Visual Studio with host architecture "
         "unless cl.exe is already in PATH. "
         "macosx target uses cc and the remaining targets use gcc, passing compiler "
         "and linker flags the same way Lua's Makefile does when running make <target>.",
         choices=[
             "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw", "vs",
-            "vs08_32", "vs10_32", "vs12_32", "vs12_64", "vs13_32", "vs13_64", "vs15_32", "vs15_64"
-        ], default=get_default_lua_target())
+            "vs08_32", "vs08_64", "vs10_32", "vs10_64", "vs12_32", "vs12_64",
+            "vs13_32", "vs13_64", "vs15_32", "vs15_64"
+        ], metavar="{linux,macosx,freebsd,mingw,posix,generic,mingw,vs,vsXX_YY}",
+        default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
     parser.add_argument("--downloads",
