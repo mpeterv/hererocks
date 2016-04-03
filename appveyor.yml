@@ -2,6 +2,9 @@ version: 1.0.{build}
 
 shallow_clone: true
 
+cache:
+  - downloads
+
 environment:
   matrix:
   - Lua: lua 5.3
@@ -14,7 +17,7 @@ configuration:
 
 build_script:
   - PATH %CD%\here\bin;C:\mingw\bin;%PATH%
-  - python hererocks.py here --%Lua% --luarocks=latest --verbose --target=%Configuration%
+  - python hererocks.py here --%Lua% --luarocks=latest --verbose --target=%Configuration% --downloads=downloads --no-git-cache
 
 test_script:
   - lua -v
