@@ -8,8 +8,8 @@ environment:
   - Lua: luajit 2.0
 
 configuration:
+  - vs
   - vs08_32
-  - vs15_64
   - mingw
 
 build_script:

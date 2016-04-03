@@ -5,7 +5,9 @@
 from __future__ import print_function
 
 import argparse
+import hashlib
 import os
+import platform
 import re
 import shutil
 import string
@@ -14,7 +16,6 @@ import sys
 import tarfile
 import tempfile
 import zipfile
-import hashlib
 
 try:
     from urllib import urlretrieve
@@ -59,7 +60,7 @@ def program_exists(prog):
 
 platform_to_lua_target = {
     "linux": "linux",
-    "win": "mingw" if os.name == "nt" and program_exists("gcc") and not program_exists("cl") else "vs15_32",
+    "win": "mingw" if os.name == "nt" and program_exists("gcc") and not program_exists("cl") else "vs",
     "darwin": "macosx",
     "freebsd": "freebsd"
 }
@@ -68,8 +69,8 @@ def using_cl():
     return opts.target.startswith("vs")
 
 def get_default_lua_target():
-    for platform, lua_target in platform_to_lua_target.items():
-        if sys.platform.startswith(platform):
+    for plat, lua_target in platform_to_lua_target.items():
+        if sys.platform.startswith(plat):
             return lua_target
 
     return "posix" if os.name == "posix" else "generic"
@@ -1045,6 +1046,55 @@ def get_vs_setup_cmd(vs_version, arch):
         if check_existence(setenv_path):
             return 'call "{}" /{}'.format(setenv_path, arch)
 
+def setup_vs_and_rerun(vs_version, arch):
+    vs_setup_cmd = get_vs_setup_cmd(vs_version, arch).encode("UTF-8")
+
+    if vs_setup_cmd is None:
+        return
+
+    print("Setting up VS {} ({})".format(vs_version, arch))
+    bat_name = os.path.join(temp_dir, "hererocks.bat")
+    argv_name = os.path.join(temp_dir, "argv")
+    setup_output_name = os.path.join(temp_dir, "setup_out")
+
+    script_arg = '"{}"'.format(sys.argv[0])
+
+    if sys.executable:
+        script_arg = '"{}" {}'.format(sys.executable, script_arg)
+
+    recursive_call = '{} --actual-argv-file "{}"'.format(script_arg, argv_name).encode("UTF-8")
+
+    bat_h = open(bat_name, "wb")
+    bat_h.write(b"@echo off\r\n")
+    bat_h.write(b"setlocal\r\n")
+
+    if opts.verbose:
+        bat_h.write(b"echo Running {}\r\n".format(vs_setup_cmd))
+        bat_h.write(b"{}\r\n".format(vs_setup_cmd))
+    else:
+        bat_h.write(b'{} > "{}" 2>&1\r\n'.format(vs_setup_cmd, setup_output_name))
+
+    bat_h.write(b"set exitcode=%errorlevel%\r\n")
+    bat_h.write(b"if %exitcode% equ 0 (\r\n")
+    bat_h.write(b"    {}\r\n".format(recursive_call))
+    bat_h.write(b") else (\r\n")
+
+    if not opts.verbose:
+        bat_h.write(b'    type "{}"\r\n'.format(setup_output_name))
+
+    bat_h.write(b"    echo Error: got exitcode %exitcode% from command {}\r\n".format(vs_setup_cmd))
+    bat_h.write(b"    exit /b 1\r\n")
+    bat_h.write(b")\r\n")
+    bat_h.close()
+
+    argv_h = open(argv_name, "wb")
+    argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
+    argv_h.close()
+
+    exit_code = subprocess.call([bat_name])
+    shutil.rmtree(temp_dir)
+    sys.exit(exit_code)
+
 class UseActualArgsFileAction(argparse.Action):
     def __call__(self, parser, namespace, fname, option_string=None):
         args_h = open(fname, "rb")
@@ -1096,13 +1146,15 @@ def main(argv=None):
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
     parser.add_argument(
         "--target", help="Select how to build Lua. "
-        "Windows-specific targets (mingw and vsXX_YY) also affect LuaJIT. "
-        "vsXX_YY targets set up Visual Studio 20XX (YYbit) automatically "
-        "and use cl.exe as compiler. "
+        "Windows-specific targets (mingw, vs and vsXX_YY) also affect LuaJIT. "
+        "vs and vsXX_YY targets compile using cl.exe. "
+        "vsXX_YY targets always set up Visual Studio 20XX (YYbit). "
+        "vs target sets up latest available Visual Studio with host architecture "
+        "unless cl.exe is already in PATH. "
         "macosx target uses cc and the remaining targets use gcc, passing compiler "
         "and linker flags the same way Lua's Makefile does when running make <target>.",
         choices=[
-            "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw",
+            "linux", "macosx", "freebsd", "mingw", "posix", "generic", "mingw", "vs",
             "vs08_32", "vs10_32", "vs12_32", "vs12_64", "vs13_32", "vs13_64", "vs15_32", "vs15_64"
         ], default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
@@ -1144,57 +1196,24 @@ def main(argv=None):
     # If using vsXX_YY target, set VS up by writing a .bat file calling corresponding vcvarsall.bat
     # before recursively calling hererocks, passing arguments through a temporary file using
     # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
+    # If using vs target, do nothing if cl.exe is in PATH and setup latest possible VS with host arch otherwise.
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        vs_version = vs_year_to_version[opts.target[2:4]]
-        arch = "x64" if opts.target.endswith("64") else "x86"
-        vs_setup_cmd = get_vs_setup_cmd(vs_version, arch).encode("UTF-8")
+        if opts.target == "vs":
+            if program_exists("cl"):
+                print("Using cl.exe found in PATH.")
+            else:
+                arch = "x64" if platform.machine().endswith("64") else "x86"
+                vs_versions = ["11.0", "12.0", "14.0"] if arch == "x64" else ["9.0", "10.0", "11.0", "12.0", "14.0"]
 
-        if vs_setup_cmd is None:
-            sys.exit("Error: couldn't set up Visual Studio")
+                for vs_version in vs_versions:
+                    setup_vs_and_rerun(vs_version, arch)
+
+                sys.exit("Error: couldn't set up MSVC toolchain")
         else:
-            print("Setting up VS {} ({})".format(vs_version, arch))
-
-        bat_name = os.path.join(temp_dir, "hererocks.bat")
-        argv_name = os.path.join(temp_dir, "argv")
-        setup_output_name = os.path.join(temp_dir, "setup_out")
-
-        script_arg = '"{}"'.format(sys.argv[0])
-
-        if sys.executable:
-            script_arg = '"{}" {}'.format(sys.executable, script_arg)
-
-        recursive_call = '{} --actual-argv-file "{}"'.format(script_arg, argv_name).encode("UTF-8")
-
-        bat_h = open(bat_name, "wb")
-        bat_h.write(b"@echo off\r\n")
-        bat_h.write(b"setlocal\r\n")
-
-        if opts.verbose:
-            bat_h.write(b"echo Running {}\r\n".format(vs_setup_cmd))
-            bat_h.write(b"{}\r\n".format(vs_setup_cmd))
-        else:
-            bat_h.write(b'{} > "{}" 2>&1\r\n'.format(vs_setup_cmd, setup_output_name))
-
-        bat_h.write(b"set exitcode=%errorlevel%\r\n")
-        bat_h.write(b"if %exitcode% equ 0 (\r\n")
-        bat_h.write(b"    {}\r\n".format(recursive_call))
-        bat_h.write(b") else (\r\n")
-
-        if not opts.verbose:
-            bat_h.write(b'    type "{}"\r\n'.format(setup_output_name))
-
-        bat_h.write(b"    echo Error: got exitcode %exitcode% from command {}\r\n".format(vs_setup_cmd))
-        bat_h.write(b"    exit /b 1\r\n")
-        bat_h.write(b")\r\n")
-        bat_h.close()
-
-        argv_h = open(argv_name, "wb")
-        argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
-        argv_h.close()
-
-        exit_code = subprocess.call([bat_name])
-        shutil.rmtree(temp_dir)
-        sys.exit(exit_code)
+            vs_version = vs_year_to_version[opts.target[2:4]]
+            arch = "x64" if opts.target.endswith("64") else "x86"
+            setup_vs_and_rerun(vs_version, arch)
+            sys.exit("Error: couldn't set up MSVC toolchain")
 
     start_dir = os.getcwd()
     opts.location = os.path.abspath(opts.location)
