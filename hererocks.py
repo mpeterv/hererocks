@@ -968,7 +968,7 @@ class LuaRocks(Program):
             vs_arch = lua_identifiers["vs arch"]
             vs_short_version = vs_year_to_version[vs_year][:-2]
             return "Visual Studio {} 20{}{}".format(
-                vs_short_version, vs_year, "Win64" if vs_arch == "x64" else "x86")
+                vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
     def build(self):
         lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
