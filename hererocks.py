@@ -449,6 +449,20 @@ class Lua(Program):
         self.identifiers["location"] = opts.location
         self.identifiers["major version"] = self.major_version
 
+        if using_cl():
+            cl_help = get_output("cl")
+            cl_version = re.search(r"(1[56789])\.\d+", cl_help)
+            cl_arch = re.search(r"(x(?:86)|(?:64))", cl_help)
+
+            if not cl_version or not cl_arch:
+                sys.exit("Error: couldn't determine cl.exe version and architecture")
+
+            cl_version = cl_version.group(1)
+            cl_arch = cl_arch.group(1)
+
+            self.identifiers["vs year"] = cl_version_to_vs_year[cl_version]
+            self.identifiers["vs arch"] = cl_arch
+
     def add_options_to_version_suffix(self):
         options = []
 
@@ -943,6 +957,19 @@ class LuaRocks(Program):
 
         return False
 
+    @staticmethod
+    def get_cmake_generator(lua_identifiers):
+        lua_target = lua_identifiers["target"]
+
+        if lua_target == "mingw":
+            return "MinGW Makefiles"
+        elif using_cl():
+            vs_year = lua_identifiers["vs year"]
+            vs_arch = lua_identifiers["vs arch"]
+            vs_short_version = vs_year_to_version[vs_year][:-2]
+            return "Visual Studio {} 20{}{}".format(
+                vs_short_version, vs_year, "Win64" if vs_arch == "x64" else "x86")
+
     def build(self):
         lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
 
@@ -979,6 +1006,16 @@ class LuaRocks(Program):
                     if os.path.exists(script_path):
                         shutil.copy(script_path, os.path.join(opts.location, "bin"))
                         break
+
+            cmake_generator = self.get_cmake_generator(lua_identifiers)
+
+            if cmake_generator is not None:
+                config_path = os.path.join(
+                    opts.location, "luarocks", "config-{}.lua".format(lua_identifiers["major version"]))
+                config_h = open(config_path, "ab")
+                config_h.write(b'\r\ncmake_generator = "{}"\r\n'.format(cmake_generator.encode("UTF-8")))
+                config_h.close()
+
         else:
             print("Building LuaRocks" + self.version_suffix)
             run("./configure", "--prefix=" + opts.location,
@@ -997,7 +1034,7 @@ class LuaRocks(Program):
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
 
-manifest_version = 2
+manifest_version = 3
 
 def get_installed_identifiers():
     if not os.path.exists(get_manifest_name()):
@@ -1019,6 +1056,14 @@ def save_installed_identifiers(all_identifiers):
 
     with open(get_manifest_name(), "w") as manifest_h:
         json.dump(all_identifiers, manifest_h)
+
+cl_version_to_vs_year = {
+    "15": "08",
+    "16": "10",
+    "17": "12",
+    "18": "13",
+    "19": "15"
+}
 
 vs_year_to_version = {
     "08": "9.0",
