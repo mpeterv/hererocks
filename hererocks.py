@@ -1173,7 +1173,6 @@ def main(argv=None):
 
         bat_h.write(b"set exitcode=%errorlevel%\r\n")
         bat_h.write(b"if %exitcode% equ 0 (\r\n")
-        bat_h.write(b"    endlocal\r\n")
         bat_h.write(b"    {}\r\n".format(recursive_call))
         bat_h.write(b") else (\r\n")
 
@@ -1181,7 +1180,6 @@ def main(argv=None):
             bat_h.write(b'    type "{}"\r\n'.format(setup_output_name))
 
         bat_h.write(b"    echo Error: got exitcode %exitcode% from command {}\r\n".format(vs_setup_cmd))
-        bat_h.write(b"    endlocal\r\n")
         bat_h.write(b"    exit /b 1\r\n")
         bat_h.write(b")\r\n")
         bat_h.close()
