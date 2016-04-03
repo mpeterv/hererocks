@@ -160,7 +160,7 @@ def git_branch_accepts_tags():
 
     if git_branch_does_accept_tags is None:
         version_output = get_output("git", "--version")
-        match = re.search("(\d+)\.(\d+)\.?(\d*)", version_output)
+        match = re.search(r"(\d+)\.(\d+)\.?(\d*)", version_output)
 
         if match:
             major = int(match.group(1))
@@ -192,7 +192,7 @@ def git_clone_command(repo, ref, is_cache):
         return ["git", "clone", "--depth=1"], True
 
 def escape_identifier(s):
-    return re.sub("[^\w]", "_", s)
+    return re.sub(r"[^\w]", "_", s)
 
 def identifiers_to_string(identifiers):
     return "-".join(identifiers)
@@ -401,7 +401,7 @@ class Lua(Program):
         lua_h = open(os.path.join("src", "lua.h"))
 
         for line in lua_h:
-            match = re.match("^\\s*#define\\s+LUA_VERSION_NUM\\s+50(\d)\\s*$", line)
+            match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
 
             if match:
                 return "5." + match.group(1)
@@ -902,7 +902,7 @@ class LuaRocks(Program):
         makefile = open("Makefile")
 
         for line in makefile:
-            if re.match("^\\s*all:\\s+built\\s*$", line):
+            if re.match(r"^\s*all:\s+built\s*$", line):
                 return True
 
         return False
