@@ -772,7 +772,8 @@ class LuaJIT(Lua):
         if self.compat == "5.2":
             self.compat_cflags.append("-DLUAJIT_ENABLE_LUA52COMPAT")
 
-    def add_cflags_to_msvcbuild(self, cflags):
+    @staticmethod
+    def add_cflags_to_msvcbuild(cflags):
         msvcbuild_file = open("msvcbuild.bat", "rb")
         msvcbuild_src = msvcbuild_file.read()
         msvcbuild_file.close()
@@ -907,7 +908,8 @@ class LuaRocks(Program):
 
         return False
 
-    def lua_version(self):
+    @staticmethod
+    def lua_version():
         for lua in ["lua5.1", "lua", "luajit"]:
             lua_binary = os.path.join(opts.location, "bin", exe(lua))
             if is_executable(lua_binary):
