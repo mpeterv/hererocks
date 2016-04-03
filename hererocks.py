@@ -990,17 +990,26 @@ class LuaRocks(Program):
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
 
+manifest_version = 1
+
 def get_installed_identifiers():
     if not os.path.exists(get_manifest_name()):
         return {}
 
     with open(get_manifest_name()) as manifest_h:
         try:
-            return json.load(manifest_h)
+            identifiers = json.load(manifest_h)
         except ValueError:
             return {}
 
+        if identifiers.get("version") == manifest_version:
+            return identifiers
+        else:
+            return {}
+
 def save_installed_identifiers(all_identifiers):
+    all_identifiers["version"] = manifest_version
+
     with open(get_manifest_name(), "w") as manifest_h:
         json.dump(all_identifiers, manifest_h)
 
