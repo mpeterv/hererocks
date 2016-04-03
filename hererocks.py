@@ -1033,7 +1033,7 @@ def get_vs_setup_cmd(vs_version, arch):
         if check_existence(vcvars_arch_path):
             return 'call "{}"'.format(vcvars_arch_path)
 
-    wsdk_directory = get_windows_sdk_directory(vs_version)
+    wsdk_directory = get_wsdk_directory(vs_version)
 
     if wsdk_directory is not None:
         setenv_path = os.path.join(wsdk_directory, "bin", "setenv.cmd")
