@@ -229,14 +229,14 @@ class Program(object):
 
         if version in self.versions:
             # Simple version.
-            self.source_kind = "fixed"
+            self.source = "release"
             self.fetched = False
             self.version = version
             self.fixed_version = version
             self.version_suffix = " " + version
         elif "@" in version:
             # Version from a git repo.
-            self.source_kind = "git"
+            self.source = "git"
 
             if version.startswith("@"):
                 # Use the default git repo for this program.
@@ -251,7 +251,7 @@ class Program(object):
             self.version_suffix = " @" + self.commit[:7]
         else:
             # Local directory.
-            self.source_kind = "local"
+            self.source = "local"
 
             if not os.path.exists(version):
                 sys.exit("Error: bad {} version {}".format(self.title, version))
@@ -314,7 +314,7 @@ class Program(object):
         if self.fetched:
             return
 
-        if self.source_kind == "git":
+        if self.source == "git":
             # Currently inside the cached git repo, just copy it somewhere.
             result_dir = os.path.join(temp_dir, self.name)
             copy_dir(".", result_dir)
@@ -357,9 +357,9 @@ class Program(object):
         self.fetched = True
 
     def set_identifiers(self):
-        if self.source_kind == "fixed":
+        if self.source == "release":
             self.identifiers = [self.name, escape_identifier(self.version)]
-        elif self.source_kind == "git":
+        elif self.source == "git":
             self.identifiers = [self.name, "git", escape_identifier(self.repo), escape_identifier(self.commit)]
         else:
             self.identifiers = None
@@ -382,7 +382,7 @@ class Lua(Program):
     def __init__(self, version):
         super(Lua, self).__init__(version)
 
-        if self.source_kind == "fixed":
+        if self.source == "release":
             self.major_version = self.major_version_from_version()
         else:
             self.major_version = self.major_version_from_source()
@@ -753,7 +753,7 @@ class LuaJIT(Lua):
     def __init__(self, version):
         super(LuaJIT, self).__init__(version)
 
-        if self.source_kind == "fixed" and self.version == "2.0.1":
+        if self.source == "release" and self.version == "2.0.1":
             # v2.0.1 tag is broken, use v2.0.1-fixed.
             self.fixed_version = "2.0.1-fixed"
 
@@ -900,7 +900,7 @@ class LuaRocks(Program):
     }
 
     def is_luarocks_2_0(self):
-        if self.source_kind == "fixed":
+        if self.source == "release":
             return self.versions.index(self.version) < self.versions.index("2.1.0")
 
         makefile = open("Makefile")
