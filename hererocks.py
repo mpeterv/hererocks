@@ -547,7 +547,8 @@ class RioLua(Lua):
         "5.1.0": "5.1",
         "5.2": "5.2.4",
         "5.3": "5.3.2",
-        "^": "5.3.2"
+        "^": "5.3.2",
+        "latest": "5.3.2"
     }
     checksums = {
         "lua-5.1.tar.gz"  : "7f5bb9061eb3b9ba1e406a5aa68001a66cb82bac95748839dc02dd10048472c1",
@@ -758,7 +759,8 @@ class LuaJIT(Lua):
         "2": "2.0.4",
         "2.0": "2.0.4",
         "2.1": "2.1.0-beta2",
-        "^": "2.0.4"
+        "^": "2.0.4",
+        "latest": "2.0.4"
     }
     checksums = {
         "LuaJIT-2.0.0.tar.gz"      : "778650811bdd9fc55bbb6a0e845e4c0101001ce5ca1ab95001f0d289c61760ab",
@@ -890,7 +892,8 @@ class LuaRocks(Program):
         "2.2": "2.2.2",
         "2.3": "2.3.0",
         "3": "@luarocks-3",
-        "^": "2.3.0"
+        "^": "2.3.0",
+        "latest": "2.3.0"
     }
     checksums = {
         "luarocks-2.0.10.tar.gz"   : "11731dfe6e210a962cb2a857b8b2f14a9ab1043e13af09a1b9455b486401b46e",
@@ -1125,7 +1128,7 @@ def main(argv=None):
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
         "Versions 5.1.0 - 5.3.2 are supported, "
-        "'^' can be used to install the latest stable version. "
+        "'^' or 'latest' can be used to install the latest stable version. "
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
         "to checkout, 'master' by default. "

@@ -14,7 +14,7 @@ configuration:
 
 build_script:
   - PATH %CD%\here\bin;C:\mingw\bin;%PATH%
-  - python hererocks.py here --%Lua% --luarocks ^^ --verbose --target=%Configuration%
+  - python hererocks.py here --%Lua% --luarocks=latest --verbose --target=%Configuration%
 
 test_script:
   - lua -v
