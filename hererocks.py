@@ -1018,19 +1018,17 @@ def get_wsdk_directory(vs_version):
     return query_registry(
         "Software\\Microsoft\\Microsoft SDKs\\Windows\\{}".format(wsdk_version), "InstallationFolder")
 
-def get_vs_setup_cmd(target):
-    vs_version = vs_year_to_version[target[2:4]]
-    x64 = target.endswith("64")
-
+def get_vs_setup_cmd(vs_version, arch):
     vs_directory = get_vs_directory(vs_version)
 
     if vs_directory is not None:
         vcvars_all_path = os.path.join(vs_directory, "vcvarsall.bat")
 
         if check_existence(vcvars_all_path):
-            return 'call "{}"{}'.format(vcvars_all_path, " amd64" if x64 else "")
+            return 'call "{}"{}'.format(vcvars_all_path, " amd64" if arch == "x64" else "")
 
-        vcvars_arch_path = os.path.join(vs_directory, "bin", "amd64\\vcvars64.bat" if x64 else "vcvars32.bat")
+        vcvars_arch_path = os.path.join(
+            vs_directory, "bin", "amd64\\vcvars64.bat" if arch == "x64" else "vcvars32.bat")
 
         if check_existence(vcvars_arch_path):
             return 'call "{}"'.format(vcvars_arch_path)
@@ -1041,7 +1039,7 @@ def get_vs_setup_cmd(target):
         setenv_path = os.path.join(wsdk_directory, "bin", "setenv.cmd")
 
         if check_existence(setenv_path):
-            return 'call "{}" /{}'.format(setenv_path, "x64" if x64 else "x86")
+            return 'call "{}" /{}'.format(setenv_path, arch)
 
 class UseActualArgsFileAction(argparse.Action):
     def __call__(self, parser, namespace, fname, option_string=None):
@@ -1143,26 +1141,49 @@ def main(argv=None):
     # before recursively calling hererocks, passing arguments through a temporary file using
     # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        vs_setup_cmd = get_vs_setup_cmd(opts.target)
+        vs_version = vs_year_to_version[opts.target[2:4]]
+        arch = "x64" if opts.target.endswith("64") else "x86"
+        vs_setup_cmd = get_vs_setup_cmd(vs_version, arch).encode("UTF-8")
 
         if vs_setup_cmd is None:
             sys.exit("Error: couldn't set up Visual Studio")
+        else:
+            print("Setting up VS {} ({})".format(vs_version, arch))
 
         bat_name = os.path.join(temp_dir, "hererocks.bat")
         argv_name = os.path.join(temp_dir, "argv")
+        setup_output_name = os.path.join(temp_dir, "setup_out")
+
+        script_arg = '"{}"'.format(sys.argv[0])
+
+        if sys.executable:
+            script_arg = '"{}" {}'.format(sys.executable, script_arg)
+
+        recursive_call = '{} --actual-argv-file "{}"'.format(script_arg, argv_name).encode("UTF-8")
 
         bat_h = open(bat_name, "wb")
         bat_h.write(b"@echo off\r\n")
-        bat_h.write(vs_setup_cmd.encode("UTF-8") + b"\r\n")
+        bat_h.write(b"setlocal\r\n")
 
-        script_arg = '"' + sys.argv[0] + '"'
+        if opts.verbose:
+            bat_h.write(b"echo Running {}\r\n".format(vs_setup_cmd))
+            bat_h.write(b"{}\r\n".format(vs_setup_cmd))
+        else:
+            bat_h.write(b'{} > "{}" 2>&1\r\n'.format(vs_setup_cmd, setup_output_name))
 
-        if sys.executable:
-            script_arg = '"' + sys.executable + '" ' + script_arg
+        bat_h.write(b"set exitcode=%errorlevel%\r\n")
+        bat_h.write(b"if %exitcode% equ 0 (\r\n")
+        bat_h.write(b"    endlocal\r\n")
+        bat_h.write(b"    {}\r\n".format(recursive_call))
+        bat_h.write(b") else (\r\n")
 
-        recursive_call = script_arg + ' --actual-argv-file "' + argv_name + '"\r\n'
+        if not opts.verbose:
+            bat_h.write(b'    type "{}"\r\n'.format(setup_output_name))
 
-        bat_h.write(recursive_call.encode("UTF-8"))
+        bat_h.write(b"    echo Error: got exitcode %exitcode% from command {}\r\n".format(vs_setup_cmd))
+        bat_h.write(b"    endlocal\r\n")
+        bat_h.write(b"    exit /b 1\r\n")
+        bat_h.write(b")\r\n")
         bat_h.close()
 
         argv_h = open(argv_name, "wb")
