@@ -1238,8 +1238,8 @@ def main(argv=None):
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
     parser.add_argument("--downloads",
-                        # help="Cache downloads in 'DOWNLOADS' directory.",
-                        help=argparse.SUPPRESS, default=get_default_cache())
+                        help="Cache downloads and default git repos in 'DOWNLOADS' directory.",
+                        default=get_default_cache())
     parser.add_argument("--no-git-cache",
                         help="Do not cache default git repos.",
                         action="store_true", default=False)
