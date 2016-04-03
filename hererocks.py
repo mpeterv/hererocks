@@ -1203,7 +1203,7 @@ def main(argv=None):
                 print("Using cl.exe found in PATH.")
             else:
                 arch = "x64" if platform.machine().endswith("64") else "x86"
-                vs_versions = ["11.0", "12.0", "14.0"] if arch == "x64" else ["9.0", "10.0", "11.0", "12.0", "14.0"]
+                vs_versions = ["14.0", "12.0", "11.0"] if arch == "x64" else ["14.0", "12.0", "11.0", "10.0", "9.0"]
 
                 for vs_version in vs_versions:
                     setup_vs_and_rerun(vs_version, arch)
