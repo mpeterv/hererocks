@@ -1139,7 +1139,7 @@ def setup_vs_and_rerun(vs_version, arch):
 
     bat_h = open(bat_name, "wb")
     bat_h.write(b"@echo off\r\n")
-    bat_h.write(b"setlocal\r\n")
+    bat_h.write(b"setlocal enabledelayedexpansion enableextensions\r\n")
 
     if opts.verbose:
         bat_h.write(b"echo Running {}\r\n".format(vs_setup_cmd))
