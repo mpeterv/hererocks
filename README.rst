@@ -14,7 +14,7 @@ hererocks
 Supported platforms
 -------------------
 
-hererocks supports platforms that have ``gcc`` (``cc`` for OS X). When building Lua it emulates a ``make`` target, using ``linux``, ``macosx`, and ``freebsd`` on corresponding systems and falling back to ``posix`` and ``generic`` on others.
+hererocks supports platforms that have ``gcc`` (``cc`` for OS X). When building Lua it emulates a ``make`` target, using ``linux``, ``macosx``, and ``freebsd`` on corresponding systems and falling back to ``posix`` and ``generic`` on others.
 
 Windows support is almost implemented on master branch (`#8 <https://github.com/mpeterv/hererocks/issues/8>`_ `#17 <https://github.com/mpeterv/hererocks/issues/17>`_ `#18 <https://github.com/mpeterv/hererocks/issues/18>`_ `#19 <https://github.com/mpeterv/hererocks/issues/19>`_), but latest released version doesn't have it yet.
 
