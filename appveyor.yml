@@ -8,7 +8,13 @@ cache:
 environment:
   matrix:
   - Lua: lua 5.3
+    Python: 35-x64
   - Lua: luajit 2.0
+    Python: 35-x64
+  - Lua: lua 5.3
+    Python: 27
+  - Lua: luajit 2.0
+    Python: 27
 
 configuration:
   - vs
@@ -16,7 +22,7 @@ configuration:
   - mingw
 
 build_script:
-  - PATH %CD%\here\bin;C:\mingw\bin;%PATH%
+  - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;%PATH%
   - python hererocks.py here --%Lua% --luarocks=latest --verbose --target=%Configuration% --downloads=downloads --no-git-cache
 
 test_script:
