@@ -827,11 +827,12 @@ class LuaJIT(Lua):
         msvcbuild_file.close()
 
         start, assignment, value_and_rest = msvcbuild_src.partition(b"@set LJCOMPILE")
+        value_and_rest = value_and_rest.decode("UTF-8")
 
         msvcbuild_file = open("msvcbuild.bat", "wb")
         msvcbuild_file.write(start)
         msvcbuild_file.write(assignment)
-        msvcbuild_file.write(value_and_rest.replace(b"\r\n", b" " + cflags.encode("UTF-8") + b"\r\n", 1))
+        msvcbuild_file.write(value_and_rest.replace("\r\n", " {}\r\n".format(cflags), 1).encode("UTF-8"))
         msvcbuild_file.close()
 
     def make(self):
@@ -1013,7 +1014,7 @@ class LuaRocks(Program):
                 config_path = os.path.join(
                     opts.location, "luarocks", "config-{}.lua".format(lua_identifiers["major version"]))
                 config_h = open(config_path, "ab")
-                config_h.write(b'\r\ncmake_generator = "{}"\r\n'.format(cmake_generator.encode("UTF-8")))
+                config_h.write('\r\ncmake_generator = "{}"\r\n'.format(cmake_generator).encode("UTF-8"))
                 config_h.close()
 
         else:
@@ -1120,7 +1121,7 @@ def get_vs_setup_cmd(vs_version, arch):
             return 'call "{}" /{}'.format(setenv_path, arch)
 
 def setup_vs_and_rerun(vs_version, arch):
-    vs_setup_cmd = get_vs_setup_cmd(vs_version, arch).encode("UTF-8")
+    vs_setup_cmd = get_vs_setup_cmd(vs_version, arch)
 
     if vs_setup_cmd is None:
         return
@@ -1135,29 +1136,39 @@ def setup_vs_and_rerun(vs_version, arch):
     if sys.executable:
         script_arg = '"{}" {}'.format(sys.executable, script_arg)
 
-    recursive_call = '{} --actual-argv-file "{}"'.format(script_arg, argv_name).encode("UTF-8")
+    recursive_call = '{} --actual-argv-file "{}"'.format(script_arg, argv_name)
 
-    bat_h = open(bat_name, "wb")
-    bat_h.write(b"@echo off\r\n")
-    bat_h.write(b"setlocal enabledelayedexpansion enableextensions\r\n")
+    bat_lines = [
+        "@echo off",
+        "setlocal enabledelayedexpansion enableextensions"
+    ]
 
     if opts.verbose:
-        bat_h.write(b"echo Running {}\r\n".format(vs_setup_cmd))
-        bat_h.write(b"{}\r\n".format(vs_setup_cmd))
+        bat_lines.extend([
+            "echo Running {}".format(vs_setup_cmd),
+            vs_setup_cmd
+        ])
     else:
-        bat_h.write(b'{} > "{}" 2>&1\r\n'.format(vs_setup_cmd, setup_output_name))
+        bat_lines.append('{} > "{}" 2>&1'.format(vs_setup_cmd, setup_output_name))
 
-    bat_h.write(b"set exitcode=%errorlevel%\r\n")
-    bat_h.write(b"if %exitcode% equ 0 (\r\n")
-    bat_h.write(b"    {}\r\n".format(recursive_call))
-    bat_h.write(b") else (\r\n")
+    bat_lines.extend([
+        "set exitcode=%errorlevel%",
+        "if %exitcode% equ 0 (",
+        "    {}".format(recursive_call),
+        ") else ("
+    ])
 
     if not opts.verbose:
-        bat_h.write(b'    type "{}"\r\n'.format(setup_output_name))
+        bat_lines.append('    type "{}"'.format(setup_output_name))
 
-    bat_h.write(b"    echo Error: got exitcode %exitcode% from command {}\r\n".format(vs_setup_cmd))
-    bat_h.write(b"    exit /b 1\r\n")
-    bat_h.write(b")\r\n")
+    bat_lines.extend([
+        "    echo Error: got exitcode %exitcode% from command {}".format(vs_setup_cmd),
+        "    exit /b 1",
+        ")"
+    ])
+
+    bat_h = open(bat_name, "wb")
+    bat_h.write("\r\n".join(bat_lines).encode("UTF-8"))
     bat_h.close()
 
     argv_h = open(argv_name, "wb")
