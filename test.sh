@@ -7,6 +7,8 @@ rm -rf test/here
 $HEREROCKS -l^ -r^
 lua -v
 lua -e "assert(bit32)"
+lua -e "assert(coroutine.wrap(string.gmatch('x', '.'))() ~= 'x')"
+
 luarocks --version
 luarocks make
 hererocks-test | tee test/tmp && grep "5\.3" test/tmp
@@ -27,9 +29,11 @@ lua -e "(function(...) assert(arg == nil) end)()"
 lua -e "assert(math.mod == nil)"
 
 rm -rf test/here
-$HEREROCKS -l 5.3 --compat=none --builds=test/builds
+rm -rf test/builds
+$HEREROCKS -l 5.3 --compat=none --patch --builds=test/builds
 lua -e "assert(not bit32)"
+lua -e "assert(coroutine.wrap(string.gmatch('x', '.'))() == 'x')"
 
 rm -rf test/here
-$HEREROCKS -l 5.3 --compat=none --builds=test/builds | tee test/tmp && grep "Building" test/tmp | grep "cached"
+$HEREROCKS -l 5.3 --compat=none --patch --builds=test/builds | tee test/tmp && grep "Building" test/tmp | grep "cached"
 $HEREROCKS --show
