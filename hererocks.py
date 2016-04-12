@@ -196,7 +196,7 @@ def git_clone_command(repo, ref, is_cache):
         return ["git", "clone", "--depth=1"], True
 
 important_identifiers = ["name", "source", "version", "repo", "commit", "location"]
-other_identifiers = ["target", "compat", "c flags", "readline"]
+other_identifiers = ["target", "compat", "c flags", "patched", "readline"]
 
 def escape_path(s):
     return re.sub(r"[^\w]", "_", s)
@@ -553,6 +553,123 @@ class Lua(Program):
         print("Installing " + self.title + self.version_suffix)
         self.make_install()
 
+class PatchError(Exception):
+    pass
+
+class LineScanner(object):
+    def __init__(self, lines):
+        self.lines = lines
+        self.line_number = 1
+
+    def consume_line(self):
+        if self.line_number > len(self.lines):
+            raise PatchError("source is too short")
+        else:
+            self.line_number += 1
+            return self.lines[self.line_number - 2]
+
+class Hunk(object):
+    def __init__(self, start_line, lines):
+        self.start_line = start_line
+        self.lines = lines
+
+    def add_new_lines(self, old_lines_scanner, new_lines):
+        while old_lines_scanner.line_number < self.start_line:
+            new_lines.append(old_lines_scanner.consume_line())
+
+        for line in self.lines:
+            first_char, rest = line[0], line[1:]
+
+            if first_char in " -":
+                # Deleting or copying a line: it must match what's in the diff.
+                if rest != old_lines_scanner.consume_line():
+                    raise PatchError("source is different")
+
+            if first_char in " +":
+                # Adding or copying a line: add it to the line list.
+                new_lines.append(rest)
+
+class FilePatch(object):
+    def __init__(self, file_name, lines):
+        self.file_name = file_name
+        self.hunks = []
+        self.new_lines = []
+        hunk_lines = None
+        start_line = None
+
+        for line in lines:
+            first_char = line[0]
+
+            if first_char == "@":
+                if start_line is not None:
+                    self.hunks.append(Hunk(start_line, hunk_lines))
+
+                match = re.match(r"^@@ \-(\d+)", line)
+                start_line = int(match.group(1))
+                hunk_lines = []
+            else:
+                hunk_lines.append(line)
+
+        if start_line is not None:
+            self.hunks.append(Hunk(start_line, hunk_lines))
+
+    def prepare_application(self):
+        if not os.path.exists(self.file_name):
+            raise PatchError("{} doesn't exist".format(self.file_name))
+
+        with open(self.file_name, "r") as handler:
+            source = handler.read()
+
+        old_lines = source.splitlines()
+        old_lines_scanner = LineScanner(old_lines)
+
+        for hunk in self.hunks:
+            hunk.add_new_lines(old_lines_scanner, self.new_lines)
+
+        while old_lines_scanner.line_number <= len(old_lines):
+            self.new_lines.append(old_lines_scanner.consume_line())
+
+        self.new_lines.append("")
+
+    def apply(self):
+        with open(self.file_name, "wb") as handler:
+            handler.write("\n".join(self.new_lines).encode("UTF-8"))
+
+class Patch(object):
+    def __init__(self, src):
+        # The first and the last lines are empty.
+        lines = src.splitlines()[1:-1]
+        indent_length = len(lines[0]) - len(lines[0].lstrip())
+        lines = [line[indent_length:] or " " for line in lines]
+        self.file_patches = []
+        file_lines = None
+        file_name = None
+
+        for line in lines:
+            match = re.match(r"^([\w\.]+):$", line)
+
+            if match:
+                if file_name is not None:
+                    self.file_patches.append(FilePatch(file_name, file_lines))
+
+                file_name = match.group(1)
+                file_lines = []
+            else:
+                file_lines.append(line)
+
+        if file_name is not None:
+            self.file_patches.append(FilePatch(file_name, file_lines))
+
+    def apply(self):
+        try:
+            for file_patch in self.file_patches:
+                file_patch.prepare_application()
+        except PatchError as e:
+            return e.args[0]
+
+        for file_patch in self.file_patches:
+            file_patch.apply()
+
 class RioLua(Lua):
     name = "lua"
     title = "Lua"
@@ -589,6 +706,107 @@ class RioLua(Lua):
         "lua-5.3.1.tar.gz": "072767aad6cc2e62044a66e8562f51770d941e972dc1e4068ba719cd8bffac17",
         "lua-5.3.2.tar.gz": "c740c7bb23a936944e1cc63b7c3c5351a8976d7867c5252c8854f7b2af9da68f",
     }
+    all_patches = {
+        "When loading a file, Lua may call the reader function again after it returned end of input": """
+            lzio.h:
+            @@ -59,6 +59,7 @@
+               lua_Reader reader;
+               void* data;\t\t\t/* additional data */
+               lua_State *L;\t\t\t/* Lua state (for reader) */
+            +  int eoz;\t\t\t/* true if reader has no more data */
+             };
+
+
+            lzio.c:
+            @@ -22,10 +22,14 @@
+               size_t size;
+               lua_State *L = z->L;
+               const char *buff;
+            +  if (z->eoz) return EOZ;
+               lua_unlock(L);
+               buff = z->reader(L, z->data, &size);
+               lua_lock(L);
+            -  if (buff == NULL || size == 0) return EOZ;
+            +  if (buff == NULL || size == 0) {
+            +    z->eoz = 1;  /* avoid calling reader function next time */
+            +    return EOZ;
+            +  }
+               z->n = size - 1;
+               z->p = buff;
+               return char2int(*(z->p++));
+            @@ -51,6 +55,7 @@
+               z->data = data;
+               z->n = 0;
+               z->p = NULL;
+            +  z->eoz = 0;
+             }
+            """,
+        "Metatable may access its own deallocated field when it has a self reference in __newindex": """
+            lvm.c:
+            @@ -190,18 +190,19 @@
+               for (loop = 0; loop < MAXTAGLOOP; loop++) {
+                 const TValue *tm;
+                 if (oldval != NULL) {
+            -      lua_assert(ttistable(t) && ttisnil(oldval));
+            +      Table *h = hvalue(t);  /* save 't' table */
+            +      lua_assert(ttisnil(oldval));
+                   /* must check the metamethod */
+            -      if ((tm = fasttm(L, hvalue(t)->metatable, TM_NEWINDEX)) == NULL &&
+            +      if ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL &&
+                      /* no metamethod; is there a previous entry in the table? */
+                      (oldval != luaO_nilobject ||
+                      /* no previous entry; must create one. (The next test is
+                         always true; we only need the assignment.) */
+            -         (oldval = luaH_newkey(L, hvalue(t), key), 1))) {
+            +         (oldval = luaH_newkey(L, h, key), 1))) {
+                     /* no metamethod and (now) there is an entry with given key */
+                     setobj2t(L, cast(TValue *, oldval), val);
+            -        invalidateTMcache(hvalue(t));
+            -        luaC_barrierback(L, hvalue(t), val);
+            +        invalidateTMcache(h);
+            +        luaC_barrierback(L, h, val);
+                     return;
+                   }
+                   /* else will try the metamethod */
+            """,
+        "Label between local definitions can mix-up their initializations": """
+            lparser.c:
+            @@ -1226,7 +1226,7 @@
+               checkrepeated(fs, ll, label);  /* check for repeated labels */
+               checknext(ls, TK_DBCOLON);  /* skip double colon */
+               /* create new entry for this label */
+            -  l = newlabelentry(ls, ll, label, line, fs->pc);
+            +  l = newlabelentry(ls, ll, label, line, luaK_getlabel(fs));
+               skipnoopstat(ls);  /* skip other no-op statements */
+               if (block_follow(ls, 0)) {  /* label is last no-op statement in the block? */
+                 /* assume that locals are already out of scope */
+            """,
+        "gmatch iterator fails when called from a coroutine different from the one that created it": """
+            lstrlib.c:
+            @@ -688,6 +688,7 @@
+             static int gmatch_aux (lua_State *L) {
+               GMatchState *gm = (GMatchState *)lua_touserdata(L, lua_upvalueindex(3));
+               const char *src;
+            +  gm->ms.L = L;
+               for (src = gm->src; src <= gm->ms.src_end; src++) {
+                 const char *e;
+                 reprepstate(&gm->ms);
+            """
+    }
+    patches_per_version = {
+        "5.1": {
+            "5": [
+                "When loading a file, Lua may call the reader function again after it returned end of input"
+            ]
+        },
+        "5.3": {
+            "2": [
+                "Metatable may access its own deallocated field when it has a self reference in __newindex",
+                "Label between local definitions can mix-up their initializations",
+                "gmatch iterator fails when called from a coroutine different from the one that created it"
+            ]
+        }
+    }
 
     def __init__(self, version):
         super(RioLua, self).__init__(version)
@@ -610,6 +828,7 @@ class RioLua(Lua):
         super(RioLua, self).set_identifiers()
 
         self.identifiers["readline"] = str(not opts.no_readline).lower()
+        self.identifiers["patched"] = str(opts.patch).lower()
 
     def major_version_from_version(self):
         return self.version[:3]
@@ -642,6 +861,66 @@ class RioLua(Lua):
 
             if self.compat in ["default", "5.2", "all"]:
                 self.compat_cflags.append("-DLUA_COMPAT_5_2")
+
+    def apply_patch(self, patch_name):
+        patch = self.all_patches[patch_name]
+        err = Patch(patch).apply()
+
+        if opts.verbose:
+            status = "OK" if err is None else "fail - {}".format(err)
+            print('Patch for "{}": {}'.format(patch_name, status))
+
+        return err is None
+
+    @staticmethod
+    def minor_version_from_source():
+        regexps = [
+            # Lua 5.1.x, but not Lua 5.1(.0)
+            r'^\s*#define\s+LUA_RELEASE\s+"Lua 5\.1\.(\d)"\s*$',
+            # Lua 5.2.x and 5.3.x
+            r'^\s*#define LUA_VERSION_RELEASE\s+"(\d)"\s*$'
+        ]
+
+        lua_h = open(os.path.join("lua.h"))
+
+        for line in lua_h:
+            for regexp in regexps:
+                match = re.match(regexp, line)
+
+                if match:
+                    return match.group(1)
+
+        # Reachable only for Lua 5.1(.0) or if lua.h is strange.
+        return "0"
+
+    def get_minor_version(self):
+        if self.source == "release":
+            return self.version[-1:]
+        else:
+            return self.minor_version_from_source()
+
+    def handle_patches(self):
+        patches = self.patches_per_version.get(self.major_version, {})
+
+        if not patches:
+            print("No patches available for Lua {}".format(self.major_version))
+            return
+
+        minor_version = self.get_minor_version()
+        patches = patches.get(minor_version, [])
+
+        if not patches:
+            print("No patches available for Lua {}.{}".format(self.major_version, minor_version))
+            return
+
+        if not opts.patch:
+            print("Skipping {} patch{}, use --patch to apply them".format(
+                len(patches), "" if len(patches) == 1 else "es"))
+            return
+
+        applied = sum(map(self.apply_patch, patches))
+        print("Using {} patch{} ({} available)".format(
+            applied, "" if applied == 1 else "es", len(patches)))
 
     def make(self):
         if self.major_version == "5.3":
@@ -704,6 +983,7 @@ class RioLua(Lua):
             cflags.insert(0, "-DLUA_BUILD_AS_DLL")
 
         os.chdir("src")
+        self.handle_patches()
         objs = []
         luac_objs = ["luac" + objext(), "print" + objext()]
 
@@ -1227,6 +1507,9 @@ def main(argv=None):
     parser.add_argument(
         "--compat", default="default", choices=["default", "none", "all", "5.1", "5.2"],
         help="Select compatibility flags for Lua.")
+    parser.add_argument(
+        "--patch", default=False, action="store_true",
+        help="Apply latest PUC-Rio Lua patches from https://www.lua.org/bugs.html when available.")
     parser.add_argument(
         "--cflags", default=None,
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
