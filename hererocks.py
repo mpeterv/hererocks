@@ -895,7 +895,7 @@ class RioLua(Lua):
 
     def get_minor_version(self):
         if self.source == "release":
-            return self.version[-1:]
+            return "0" if self.version == "5.1" else self.version[-1:]
         else:
             return self.minor_version_from_source()
 
