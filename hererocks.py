@@ -914,8 +914,9 @@ class RioLua(Lua):
             return
 
         if not opts.patch:
-            print("Skipping {} patch{}, use --patch to apply them".format(
-                len(patches), "" if len(patches) == 1 else "es"))
+            print("Skipping {} patch{}, use --patch to apply {}".format(
+                len(patches), "" if len(patches) == 1 else "es",
+                "it" if len(patches) == 1 else "them"))
             return
 
         applied = sum(map(self.apply_patch, patches))
