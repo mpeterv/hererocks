@@ -99,6 +99,17 @@ class TestCLI(unittest.TestCase):
             self.assertHererocksSuccess([
                 "--luajit", "latest", "--compat", "5.2", "--cflags=-DLUA_USE_APICHECK", "--target", "vs"])
 
+    def test_install_latest_luajit_with_latest_luarocks(self):
+        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "latest", "--verbose"])
+        self.assertSuccess(["lua", "-v"], ["Ravi 5.3.2"])
+        self.assertSuccess(["lua", "-e", "local t: table = {}"])
+
+        self.assertSuccess(["luarocks", "--version"])
+        self.assertSuccess(["luarocks", "make", os.path.join("test", "hererocks-test-scm-1.rockspec")])
+        self.assertSuccess(["hererocks-test"], ["Ravi 5.3.2"])
+
+        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "latest"], ["already installed"])
+
     def test_cached_lua_5_2_build(self):
         self.assertHererocksSuccess(
             ["--lua", "5.2", "--builds", os.path.join("test", "builds")],

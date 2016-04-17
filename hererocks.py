@@ -13,6 +13,7 @@ import re
 import shutil
 import stat
 import string
+import stat
 import subprocess
 import sys
 import tarfile
@@ -683,15 +684,18 @@ class Lua(Program):
             "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath)
         ])
 
+    def luaconf_h_path(self):
+        return os.path.join("src", "luaconf.h")
+
     def patch_redefines(self):
         redefines = "\n".join(self.redefines)
 
-        with open(os.path.join("src", "luaconf.h"), "rb") as luaconf_h:
+        with open(self.luaconf_h_path(), "rb") as luaconf_h:
             luaconf_src = luaconf_h.read()
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
 
-        with open(os.path.join("src", "luaconf.h"), "wb") as luaconf_h:
+        with open(self.luaconf_h_path(), "wb") as luaconf_h:
             luaconf_h.write(body)
             luaconf_h.write(redefines.encode("UTF-8"))
             luaconf_h.write(b"\n#endif")
@@ -1391,6 +1395,95 @@ class LuaJIT(Lua):
 
         copy_dir("jit", jitlib_path)
 
+class Ravi(Lua):
+    name = "ravi"
+    title = "Ravi"
+    downloads = "https://github.com/dibyendumajumdar/ravi/archive"
+    win32_zip = False
+    default_repo = "https://github.com/dibyendumajumdar/ravi/archive"
+    versions = [
+        "0.15.1",
+    ]
+    translations = {
+        "0.15": "0.15.1",
+        "^": "0.15.1",
+        "latest": "0.15.1"
+    }
+    checksums = {
+        "ravi-0.15.1.tar.gz"   : "c42b4540a37f763904895f7fb5757f0ce0e5185e7c3e5316eb056a1ac505134d",
+    }
+
+    def __init__(self, version):
+        super(Ravi, self).__init__(version)
+
+    def get_download_url(self):
+        return self.downloads + "/" + self.fixed_version + ".tar.gz"
+
+    def luaconf_h_path(self):
+        return os.path.join("include", "luaconf.h")
+
+    @staticmethod
+    def major_version_from_version():
+        return "5.3"
+
+    @staticmethod
+    def set_version_suffix():
+        pass
+
+    def set_compat(self):
+        self.compat = "5.2"
+
+    def add_compat_cflags_and_redefines(self):
+        pass
+
+    def make(self):
+        os.mkdir("build")
+        os.chdir("build")
+        run("cmake", "-DCMAKE_BUILD_TYPE=Release", "..")
+        run("make")
+        os.chdir("..")
+
+    def make_install(self):
+        for d in ["bin", "lib", "include"]:
+            path = os.path.join(opts.location, d)
+            if not os.path.exists(path):
+                os.mkdir(path)
+
+        shutil.copy(
+            os.path.join("build", exe("ravi")),
+            os.path.join(opts.location, "bin", exe("ravi")),
+        )
+
+        so_file = "libravi.so"
+        shutil.copy(
+            os.path.join("build", so_file),
+            os.path.join(opts.location, "lib", so_file),
+        )
+
+        lua_file = os.path.join(opts.location, "bin", exe("lua"))
+        with open(lua_file, "w") as lua_exe:
+            lua_exe.write(
+                """#!/bin/sh
+export LD_LIBRARY_PATH="%(lib_dir)s:$LD_LIBRARY_PATH"
+exec "%(exe)s" "$@" """ % {
+                    "lib_dir": os.path.join(opts.location, "lib"),
+                    "exe": os.path.join(opts.location, "bin", exe("ravi")),
+                }
+            )
+        # chmod +x
+        st = os.stat(lua_file)
+        os.chmod(lua_file, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+        for header in os.listdir("include"):
+            shutil.copy(
+                os.path.join("include", header),
+                os.path.join(opts.location, "include", header),
+            )
+
+        if os.name == "nt":
+            pass
+            # TODO
+
 class LuaRocks(Program):
     name = "luarocks"
     title = "LuaRocks"
@@ -1471,7 +1564,10 @@ class LuaRocks(Program):
                 vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
     def build(self):
-        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
+        lua_identifiers = any(
+            self.all_identifiers.get(name)
+            for name in ["lua", "LuaJIT", "ravi"]
+        )
 
         if lua_identifiers is None:
             sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
@@ -1749,6 +1845,9 @@ def main(argv=None):
         "When installing from the LuaJIT main git repo its URI can be left out, "
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
+        "--ravi", help="Version of Ravi to install. "
+    )
+    parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
         "As with Lua, a version number (in range 2.0.8 - 2.4.0), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
@@ -1814,13 +1913,13 @@ def main(argv=None):
 
     global opts
     opts = parser.parse_args(argv)
-    if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show:
+    if not opts.lua and not opts.luajit and not opts.ravi and not opts.luarocks and not opts.show:
         parser.error("nothing to do")
 
-    if opts.lua and opts.luajit:
-        parser.error("can't install both PUC-Rio Lua and LuaJIT")
+    if len([impl for impl in (opts.lua, opts.luajit, opts.ravi) if impl]) > 1:
+        parser.error("can't install several Lua implementations")
 
-    if (opts.lua or opts.luajit or opts.luarocks) and opts.show:
+    if (opts.lua or opts.luajit or opts.ravi or opts.luarocks) and opts.show:
         parser.error("can't both install and show")
 
     if opts.show:
@@ -1830,7 +1929,7 @@ def main(argv=None):
             if all_identifiers:
                 print("Programs installed in {}:".format(opts.location))
 
-                for program in [RioLua, LuaJIT, LuaRocks]:
+                for program in [RioLua, LuaJIT, Ravi, LuaRocks]:
                     if program.name in all_identifiers:
                         show_identifiers(all_identifiers[program.name])
             else:
@@ -1865,6 +1964,8 @@ def main(argv=None):
     if opts.lua:
         if "LuaJIT" in identifiers:
             del identifiers["LuaJIT"]
+        if "Ravi" in identifiers:
+            del identifiers["Ravi"]
 
         if RioLua(opts.lua).update_identifiers(identifiers):
             save_installed_identifiers(identifiers)
@@ -1874,10 +1975,21 @@ def main(argv=None):
     if opts.luajit:
         if "lua" in identifiers:
             del identifiers["lua"]
+        if "Ravi" in identifiers:
+            del identifiers["Ravi"]
 
         if LuaJIT(opts.luajit).update_identifiers(identifiers):
             save_installed_identifiers(identifiers)
 
+        os.chdir(start_dir)
+
+    if opts.ravi:
+        if "lua" in identifiers:
+            del identifiers["lua"]
+        if "LuaJIT" in identifiers:
+            del identifiers["LuaJIT"]
+
+        identifiers_changed = Ravi(opts.ravi).update_identifiers(identifiers)
         os.chdir(start_dir)
 
     if opts.luarocks:
