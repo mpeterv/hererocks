@@ -94,7 +94,7 @@ Popular continuous integration services such as `Travis-CI <https://travis-ci.or
     - hererocks here -r^ --$LUA # Install latest LuaRocks version
                                 # plus the Lua version for this build job
                                 # into 'here' subdirectory
-    - export PATH=$PATH:$PWD/here/bin # Add directory with all installed binaries to PATH
+    - eval $(hererocks here --path) # change PATH, LUA_PATH, LUA_CPATH
     - luarocks install busted
 
   install:
