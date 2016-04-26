@@ -1461,7 +1461,7 @@ def setup_vs_and_rerun(vs_version, arch):
     sys.exit(exit_code)
 
 def make_activator(identifiers):
-    location = opts.location
+    location = os.path.abspath(opts.location)
     bin_path = os.path.join(location, "bin")
     luarocks_tool = os.path.join(bin_path, "luarocks")
     # old versions of luarocks don't have --bin option
@@ -1525,6 +1525,8 @@ def main(argv=None):
         "and Lua 5.3 is supported only since LuaRocks 2.2.0.")
     parser.add_argument("--show", default=False, action="store_true",
                         help="Instead of installing show programs already present in <location>")
+    parser.add_argument("--path", default=False, action="store_true",
+                        help="Print commands to activate the environment in <location>")
     parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
                         help="Install even if requested version is already present.")
     parser.add_argument(
@@ -1579,14 +1581,14 @@ def main(argv=None):
 
     global opts
     opts = parser.parse_args(argv)
-    if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show:
+    if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show and not opts.path:
         parser.error("nothing to do")
 
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
-    if (opts.lua or opts.luajit or opts.luarocks) and opts.show:
-        parser.error("can't both install and show")
+    if bool(opts.lua or opts.luajit or opts.luarocks) + opts.show + opts.path > 1:
+        parser.error("can do onlt one of: instal, show, path")
 
     if opts.show:
         if os.path.exists(opts.location):
@@ -1603,6 +1605,13 @@ def main(argv=None):
         else:
             print("Location does not exist.")
 
+        sys.exit(0)
+
+    identifiers = get_installed_identifiers()
+    identifiers_changed = False
+
+    if opts.path:
+        print(make_activator(identifiers))
         sys.exit(0)
 
     global temp_dir
@@ -1640,9 +1649,6 @@ def main(argv=None):
 
     if opts.builds is not None:
         opts.builds = os.path.abspath(opts.builds)
-
-    identifiers = get_installed_identifiers()
-    identifiers_changed = False
 
     if not os.path.exists(opts.location):
         os.makedirs(opts.location)
