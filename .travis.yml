@@ -21,7 +21,7 @@ matrix:
       language: generic
 
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install python; brew install pip; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install python; fi
   - pip install pyflakes
   - pip install pep8
 
