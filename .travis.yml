@@ -9,11 +9,6 @@ matrix:
         directories: test/cache
     - os: linux
       sudo: false
-      python: 3.2
-      cache:
-        directories: test/cache
-    - os: linux
-      sudo: false
       python: 3.5
       cache:
         directories: test/cache
