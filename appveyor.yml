@@ -16,19 +16,12 @@ environment:
   - Lua: luajit 2.0
     Python: 27
 
-configuration:
-  - vs
-  - vs08_32
-  - mingw
-
 build_script:
   - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;%PATH%
-  - python --version
-  - python hererocks.py here --%Lua% --luarocks=latest --verbose --target=%Configuration% --downloads=downloads --no-git-cache --patch
+  - pip install pyflakes pep8 coverage coveralls nose
 
 test_script:
-  - lua -v
-  - luarocks --version
-  - luarocks install lua-term 0.3
-  - luarocks install busted
-  - busted --version
+  - pyflakes .
+  - pep8 .
+  - nosetests
+  - coveralls
