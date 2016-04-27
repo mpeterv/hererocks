@@ -1,4 +1,6 @@
 *.pyc
 *.egg-info
 dist
-test
+.coverage
+test/here
+test/builds

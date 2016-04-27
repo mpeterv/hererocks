@@ -15,11 +15,11 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      ["hererocks.test"] = "test.lua"
+      ["hererocks.test"] = "test/test.lua"
    },
    install = {
       bin = {
-         ["hererocks-test"] = "hererocks-test.lua"
+         ["hererocks-test"] = "test/hererocks-test.lua"
       }
    },
    copy_directories = {}
