@@ -21,10 +21,11 @@ matrix:
       language: generic
 
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install pyflakes; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install pep8; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install python; brew install pip; fi
+  - pip install pyflakes
+  - pip install pep8
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pyflakes .; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pep8 .; fi
+  - pyflakes .
+  - pep8 .
   - ./test.sh
