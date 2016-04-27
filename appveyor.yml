@@ -11,7 +11,7 @@ environment:
   - Python: 27
 
 build_script:
-  - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;%PATH%
+  - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;C:\python%Python%\scripts;%PATH%
   - pip install pyflakes pep8 coverage coveralls nose
 
 test_script:
