@@ -7,14 +7,8 @@ cache:
 
 environment:
   matrix:
-  - Lua: lua 5.3
-    Python: 35-x64
-  - Lua: luajit 2.0
-    Python: 35-x64
-  - Lua: lua 5.3
-    Python: 27
-  - Lua: luajit 2.0
-    Python: 27
+  - Python: 35-x64
+  - Python: 27
 
 build_script:
   - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;%PATH%
