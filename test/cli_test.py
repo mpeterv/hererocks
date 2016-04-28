@@ -84,4 +84,4 @@ class TestCLI(unittest.TestCase):
             ["No patches available for Lua 5.2"])
         self.assertHererocksSuccess(
             ["--lua", "5.2", "--ignore-installed", "--compat", "none", "--builds", os.path.join("test", "builds")],
-            ["Building Lua 5.2.4 (compat: none) (cached)"])
+            ["compat: none) (cached)"])
