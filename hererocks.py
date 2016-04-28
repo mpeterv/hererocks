@@ -1641,6 +1641,10 @@ def main(argv=None):
         identifiers_changed = LuaJIT(opts.luajit).update_identifiers(identifiers)
         os.chdir(start_dir)
 
+    if identifiers_changed:
+        save_installed_identifiers(identifiers)
+        identifiers_changed = False
+
     if opts.luarocks:
         if LuaRocks(opts.luarocks).update_identifiers(identifiers):
             identifiers_changed = True
