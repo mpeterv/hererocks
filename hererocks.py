@@ -1288,6 +1288,8 @@ class LuaRocks(Program):
                     if os.path.exists(script_path):
                         shutil.copy(script_path, os.path.join(opts.location, "bin"))
                         break
+                else:
+                    sys.exit("Error: can't find {} in {}".format(script, os.path.join(opts.location, "luarocks")))
 
             cmake_generator = self.get_cmake_generator(lua_identifiers)
 
