@@ -673,7 +673,7 @@ class Patch(object):
 class RioLua(Lua):
     name = "lua"
     title = "Lua"
-    downloads = "https://www.lua.org/ftp"
+    downloads = "http://www.lua.org/ftp"
     win32_zip = False
     default_repo = "https://github.com/lua/lua"
     versions = [
