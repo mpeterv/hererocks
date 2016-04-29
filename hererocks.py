@@ -1622,7 +1622,6 @@ def main(argv=None):
         opts.builds = os.path.abspath(opts.builds)
 
     identifiers = get_installed_identifiers()
-    identifiers_changed = False
 
     if not os.path.exists(opts.location):
         os.makedirs(opts.location)
@@ -1631,28 +1630,25 @@ def main(argv=None):
         if "LuaJIT" in identifiers:
             del identifiers["LuaJIT"]
 
-        identifiers_changed = RioLua(opts.lua).update_identifiers(identifiers)
+        if RioLua(opts.lua).update_identifiers(identifiers):
+            save_installed_identifiers(identifiers)
+
         os.chdir(start_dir)
 
     if opts.luajit:
         if "lua" in identifiers:
             del identifiers["lua"]
 
-        identifiers_changed = LuaJIT(opts.luajit).update_identifiers(identifiers)
-        os.chdir(start_dir)
+        if LuaJIT(opts.luajit).update_identifiers(identifiers):
+            save_installed_identifiers(identifiers)
 
-    if identifiers_changed:
-        save_installed_identifiers(identifiers)
-        identifiers_changed = False
+        os.chdir(start_dir)
 
     if opts.luarocks:
         if LuaRocks(opts.luarocks).update_identifiers(identifiers):
-            identifiers_changed = True
+            save_installed_identifiers(identifiers)
 
         os.chdir(start_dir)
-
-    if identifiers_changed:
-        save_installed_identifiers(identifiers)
 
     shutil.rmtree(temp_dir)
     print("Done.")
