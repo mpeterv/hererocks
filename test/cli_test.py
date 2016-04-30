@@ -17,6 +17,9 @@ class TestCLI(unittest.TestCase):
         if from_prefix:
             args[0] = os.path.join("test", "here", "bin", args[0])
 
+            if os.name == "nt" and not os.path.exists(args[0]) and not os.path.exists(args[0] + ".exe"):
+                args[0] += ".bat"
+
         process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         output = process.communicate()[0].decode("UTF-8")
 
