@@ -1278,6 +1278,8 @@ class LuaRocks(Program):
             # Since LuaRocks 2.1.2
             if "/NOREG" in help_text:
                 args += ["/NOREG", "/Q"]
+            if "/NOADMIN" in help_text:
+                args += ["/NOADMIN"]
 
             run(args)
 
