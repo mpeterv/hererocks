@@ -19,4 +19,5 @@ test_script:
   - pep8 .
   - nosetests
   - coverage report
+  - git rev-parse --abbrev-ref HEAD
   - if not "%COVERALLS_REPO_TOKEN%"=="" coveralls
