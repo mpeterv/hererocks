@@ -4,3 +4,4 @@ dist
 .coverage
 test/here
 test/builds
+test/luarocks

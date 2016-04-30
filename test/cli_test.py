@@ -90,7 +90,7 @@ class TestCLI(unittest.TestCase):
             ["compat: none) (cached)"])
 
     def test_install_lua_from_given_git_repo_with_luarocks_from_local_sources(self):
-        local_luarocks = os.path.join("test", "builds", "luarocks")
+        local_luarocks = os.path.join("test", "luarocks")
         self.assertSuccess([
             "git", "clone", "https://github.com/keplerproject/luarocks",
             "--depth=1", local_luarocks], from_prefix=False)
