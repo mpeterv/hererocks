@@ -78,6 +78,17 @@ class TestCLI(unittest.TestCase):
         self.assertHererocksSuccess(["--lua", "5.3", "--patch"])
         self.assertSuccess(["lua", "-e", "assert(coroutine.wrap(string.gmatch('x', '.'))() == 'x')"])
 
+        if os.name == "nt":
+            self.assertHererocksSuccess(["--lua", "5.3", "--patch", "--target", "vs"])
+            self.assertSuccess(["lua", "-e", "assert(coroutine.wrap(string.gmatch('x', '.'))() == 'x')"])
+
+    def test_install_luajit_with_compat_with_apicheck(self):
+        self.assertHererocksSuccess(["--luajit", "latest", "--compat", "5.2", "--cflags=-DLUA_USE_APICHECK"])
+
+        if os.name == "nt":
+            self.assertHererocksSuccess([
+                "--luajit", "latest", "--compat", "5.2", "--cflags=-DLUA_USE_APICHECK", "--target", "vs"])
+
     def test_cached_lua_5_2_build(self):
         self.assertHererocksSuccess(
             ["--lua", "5.2", "--builds", os.path.join("test", "builds")],
