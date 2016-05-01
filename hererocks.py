@@ -140,6 +140,18 @@ def run(*args, **kwargs):
 def get_output(*args):
     return run(get_output=True, *args)
 
+def memoize(func):
+    cache = {}
+
+    def wrapper(arg):
+        if cache.get(arg) is None:
+            cache[arg] = func(arg)
+
+        return cache[arg]
+
+    return wrapper
+
+@memoize
 def query_registry(key, value):
     keys = [key, key.replace("\\", "\\Wow6432Node\\", 1)]
 
@@ -156,6 +168,7 @@ def query_registry(key, value):
             winreg.CloseKey(handle)
             return res
 
+@memoize
 def check_existence(path):
     if opts.verbose:
         print("Checking existence of {}".format(path))
@@ -1376,6 +1389,7 @@ vs_year_to_version = {
     "15": "14.0"
 }
 
+@memoize
 def get_vs_directory(vs_version):
     keys = [
         "Software\\Microsoft\\VisualStudio\\{}\\Setup\\VC".format(vs_version),
@@ -1388,6 +1402,7 @@ def get_vs_directory(vs_version):
         if vs_directory is not None:
             return vs_directory
 
+@memoize
 def get_wsdk_directory(vs_version):
     if vs_version == "9.0":
         wsdk_version = "v6.1"
@@ -1481,6 +1496,33 @@ def setup_vs_and_rerun(vs_version, arch):
     shutil.rmtree(temp_dir)
     sys.exit(exit_code)
 
+def setup_vs(target):
+    # If using vsXX_YY or vs_XX target, set VS up by writing a .bat file calling corresponding vcvarsall.bat
+    # before recursively calling hererocks, passing arguments through a temporary file using
+    # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
+    # If using vs target, do nothing if cl.exe is in PATH or setup latest possible VS, preferably with host arch.
+    if target == "vs" and program_exists("cl"):
+        print("Using cl.exe found in PATH.")
+        return
+
+    preferred_arch = "x64" if (platform.machine() if target == "vs" else target).endswith("64") else "x86"
+
+    possible_arches = [preferred_arch]
+
+    if target == "vs" and preferred_arch == "x64":
+        possible_arches.append("x86")
+
+    if target in ["vs", "vs_32", "vs_64"]:
+        possible_versions = ["14.0", "12.0", "11.0", "10.0", "9.0"]
+    else:
+        possible_versions = [vs_year_to_version[target[2:4]]]
+
+    for arch in possible_arches:
+        for vs_version in possible_versions:
+            setup_vs_and_rerun(vs_version, arch)
+
+    sys.exit("Error: couldn't set up MSVC toolchain")
+
 class UseActualArgsFileAction(argparse.Action):
     def __call__(self, parser, namespace, fname, option_string=None):
         args_h = open(fname, "rb")
@@ -1540,9 +1582,11 @@ def main(argv=None):
         "Windows-specific targets (mingw, vs and vsXX_YY) also affect LuaJIT. "
         "vs, vs_XX and vsXX_YY targets compile using cl.exe. "
         "vsXX_YY targets (such as vs15_32) always set up Visual Studio 20XX (YYbit). "
-        "vs target sets up latest available Visual Studio with host architecture "
-        "unless cl.exe is already in PATH. vs_32 and vs_64 targets do the same but use "
-        " fixed architecture, while vs target falls back to x86 for VS 2008 and 2010."
+        "vs_32 and vs_64 pick latest version supporting selected architecture. "
+        "vs target uses cl.exe that's already in PATH or sets up "
+        "latest available Visual Studio, preferring tools for host architecture. "
+        "It's the default target on Windows unless cl.exe is not in PATH but gcc is, "
+        "in which case mingw target is used."
         "macosx target uses cc and the remaining targets use gcc, passing compiler "
         "and linker flags the same way Lua's Makefile does when running make <target>.",
         choices=[
@@ -1607,31 +1651,8 @@ def main(argv=None):
     global temp_dir
     temp_dir = tempfile.mkdtemp()
 
-    # If using vsXX_YY target, set VS up by writing a .bat file calling corresponding vcvarsall.bat
-    # before recursively calling hererocks, passing arguments through a temporary file using
-    # --actual-argv-file because passing special characters like '^' as an argument to a batch file is not fun.
-    # If using vs target, do nothing if cl.exe is in PATH and setup latest possible VS with host arch otherwise.
-    # vs_32 and vs_64 targets are same as vs but force an arch.
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        if opts.target in ["vs", "vs_32", "vs_64"]:
-            if program_exists("cl"):
-                print("Using cl.exe found in PATH.")
-            else:
-                arch_bits = platform.machine() if opts.target == "vs" else opts.target
-                arch = "x64" if arch_bits.endswith("64") else "x86"
-                vs_versions = ["14.0", "12.0", "11.0", "10.0", "9.0"]
-
-                for vs_version in vs_versions:
-                    setup_vs_and_rerun(
-                        vs_version,
-                        "x86" if opts.target == "vs" and vs_version in ["9.0", "10.0"] else arch)
-
-                sys.exit("Error: couldn't set up MSVC toolchain")
-        else:
-            vs_version = vs_year_to_version[opts.target[2:4]]
-            arch = "x64" if opts.target.endswith("64") else "x86"
-            setup_vs_and_rerun(vs_version, arch)
-            sys.exit("Error: couldn't set up MSVC toolchain")
+        setup_vs()
 
     start_dir = os.getcwd()
     opts.location = os.path.abspath(opts.location)
