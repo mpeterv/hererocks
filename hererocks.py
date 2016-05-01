@@ -78,11 +78,24 @@ def get_default_lua_target():
 
 def get_default_cache():
     if os.name == "nt":
-        cache_root = os.getenv("LOCALAPPDATA") or os.path.join(
-            os.getenv("USERPROFILE"), "Local Settings", "Application Data")
+        cache_root = os.getenv("LOCALAPPDATA")
+
+        if cache_root is None:
+            cache_root = os.getenv("USERPROFILE")
+
+            if cache_root is None:
+                return None
+
+            cache_root = os.path.join(cache_root, "Local Settings", "Application Data")
+
         return os.path.join(cache_root, "HereRocks", "Cache")
     else:
-        return os.path.join(os.getenv("HOME"), ".cache", "hererocks")
+        home = os.getenv("HOME")
+
+        if home is None:
+            return None
+        else:
+            return os.path.join(home, ".cache", "hererocks")
 
 def run(*args, **kwargs):
     """Execute a command.
@@ -290,7 +303,7 @@ class Program(object):
     def fetch_repo(self, ref):
         message = "Cloning {} from {} @{}".format(self.title, self.repo, ref)
 
-        if self.repo == self.default_repo and not opts.no_git_cache:
+        if self.repo == self.default_repo and not opts.no_git_cache and opts.downloads is not None:
             # Default repos are cached.
             if not os.path.exists(opts.downloads):
                 os.makedirs(opts.downloads)
@@ -345,14 +358,18 @@ class Program(object):
             os.chdir(result_dir)
             return
 
-        if not os.path.exists(opts.downloads):
-            os.makedirs(opts.downloads)
+        if opts.downloads is None:
+            archive_name = os.path.join(temp_dir, self.get_file_name())
+        else:
+            if not os.path.exists(opts.downloads):
+                os.makedirs(opts.downloads)
 
-        archive_name = os.path.join(opts.downloads, self.get_file_name())
+            archive_name = os.path.join(opts.downloads, self.get_file_name())
+
         url = self.get_download_url()
         message = "Fetching {} from {}".format(self.title, url)
 
-        if not os.path.exists(archive_name):
+        if not opts.downloads or not os.path.exists(archive_name):
             print(message)
             urlretrieve(url, archive_name)
         else:
@@ -1618,7 +1635,9 @@ def main(argv=None):
 
     start_dir = os.getcwd()
     opts.location = os.path.abspath(opts.location)
-    opts.downloads = os.path.abspath(opts.downloads)
+
+    if opts.downloads is not None:
+        opts.downloads = os.path.abspath(opts.downloads)
 
     if opts.builds is not None:
         opts.builds = os.path.abspath(opts.builds)
