@@ -267,9 +267,9 @@ def objext():
     return ".obj" if using_cl() else ".o"
 
 def sha256_of_file(filename):
-    fileobj = open(filename, "rb")
-    contents = fileobj.read()
-    fileobj.close()
+    with open(filename, "rb") as handler:
+        contents = handler.read()
+
     return hashlib.sha256(contents).hexdigest()
 
 class Program(object):
@@ -459,13 +459,12 @@ class Lua(Program):
 
     @staticmethod
     def major_version_from_source():
-        lua_h = open(os.path.join("src", "lua.h"))
+        with open(os.path.join("src", "lua.h")) as lua_h:
+            for line in lua_h:
+                match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
 
-        for line in lua_h:
-            match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
-
-            if match:
-                return "5." + match.group(1)
+                if match:
+                    return "5." + match.group(1)
 
         sys.exit("Error: couldn't infer Lua major version from lua.h")
 
@@ -545,18 +544,16 @@ class Lua(Program):
     def patch_redefines(self):
         redefines = "\n".join(self.redefines)
 
-        luaconf_h = open(os.path.join("src", "luaconf.h"), "rb")
-        luaconf_src = luaconf_h.read()
-        luaconf_h.close()
+        with open(os.path.join("src", "luaconf.h"), "rb") as luaconf_h:
+            luaconf_src = luaconf_h.read()
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
 
-        luaconf_h = open(os.path.join("src", "luaconf.h"), "wb")
-        luaconf_h.write(body)
-        luaconf_h.write(redefines.encode("UTF-8"))
-        luaconf_h.write(b"\n#endif")
-        luaconf_h.write(tail)
-        luaconf_h.close()
+        with open(os.path.join("src", "luaconf.h"), "wb") as luaconf_h:
+            luaconf_h.write(body)
+            luaconf_h.write(redefines.encode("UTF-8"))
+            luaconf_h.write(b"\n#endif")
+            luaconf_h.write(tail)
 
     def build(self):
         if opts.builds and self.source != "local":
@@ -910,14 +907,13 @@ class RioLua(Lua):
             r'^\s*#define LUA_VERSION_RELEASE\s+"(\d)"\s*$'
         ]
 
-        lua_h = open(os.path.join("lua.h"))
+        with open(os.path.join("lua.h")) as lua_h:
+            for line in lua_h:
+                for regexp in regexps:
+                    match = re.match(regexp, line)
 
-        for line in lua_h:
-            for regexp in regexps:
-                match = re.match(regexp, line)
-
-                if match:
-                    return match.group(1)
+                    if match:
+                        return match.group(1)
 
         # Reachable only for Lua 5.1(.0) or if lua.h is strange.
         return "0"
@@ -1132,18 +1128,16 @@ class LuaJIT(Lua):
 
     @staticmethod
     def add_cflags_to_msvcbuild(cflags):
-        msvcbuild_file = open("msvcbuild.bat", "rb")
-        msvcbuild_src = msvcbuild_file.read()
-        msvcbuild_file.close()
+        with open("msvcbuild.bat", "rb") as msvcbuild_file:
+            msvcbuild_src = msvcbuild_file.read()
 
         start, assignment, value_and_rest = msvcbuild_src.partition(b"@set LJCOMPILE")
         value_and_rest = value_and_rest.decode("UTF-8")
 
-        msvcbuild_file = open("msvcbuild.bat", "wb")
-        msvcbuild_file.write(start)
-        msvcbuild_file.write(assignment)
-        msvcbuild_file.write(value_and_rest.replace("\r\n", " {}\r\n".format(cflags), 1).encode("UTF-8"))
-        msvcbuild_file.close()
+        with open("msvcbuild.bat", "wb") as msvcbuild_file:
+            msvcbuild_file.write(start)
+            msvcbuild_file.write(assignment)
+            msvcbuild_file.write(value_and_rest.replace("\r\n", " {}\r\n".format(cflags), 1).encode("UTF-8"))
 
     def make(self):
         cflags = list(self.compat_cflags)
@@ -1260,11 +1254,10 @@ class LuaRocks(Program):
         if self.source == "release":
             return self.versions.index(self.version) < self.versions.index("2.1.0")
 
-        makefile = open("Makefile")
-
-        for line in makefile:
-            if re.match(r"^\s*all:\s+built\s*$", line):
-                return True
+        with open("Makefile") as makefile:
+            for line in makefile:
+                if re.match(r"^\s*all:\s+built\s*$", line):
+                    return True
 
         return False
 
@@ -1327,9 +1320,9 @@ class LuaRocks(Program):
             if cmake_generator is not None:
                 config_path = os.path.join(
                     opts.location, "luarocks", "config-{}.lua".format(lua_identifiers["major version"]))
-                config_h = open(config_path, "ab")
-                config_h.write('\r\ncmake_generator = "{}"\r\n'.format(cmake_generator).encode("UTF-8"))
-                config_h.close()
+
+                with open(config_path, "ab") as config_h:
+                    config_h.write('\r\ncmake_generator = "{}"\r\n'.format(cmake_generator).encode("UTF-8"))
 
         else:
             print("Building LuaRocks" + self.version_suffix)
@@ -1488,13 +1481,11 @@ def setup_vs_and_rerun(vs_version, arch):
         ")"
     ])
 
-    bat_h = open(bat_name, "wb")
-    bat_h.write("\r\n".join(bat_lines).encode("UTF-8"))
-    bat_h.close()
+    with open(bat_name, "wb") as bat_h:
+        bat_h.write("\r\n".join(bat_lines).encode("UTF-8"))
 
-    argv_h = open(argv_name, "wb")
-    argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
-    argv_h.close()
+    with open(argv_name, "wb") as argv_h:
+        argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
 
     exit_code = subprocess.call([bat_name])
     shutil.rmtree(temp_dir)
@@ -1529,9 +1520,9 @@ def setup_vs(target):
 
 class UseActualArgsFileAction(argparse.Action):
     def __call__(self, parser, namespace, fname, option_string=None):
-        args_h = open(fname, "rb")
-        args_content = args_h.read().decode("UTF-8")
-        args_h.close()
+        with open(fname, "rb") as args_h:
+            args_content = args_h.read().decode("UTF-8")
+
         main(args_content.split("\r\n")[1:])
 
 def main(argv=None):
