@@ -151,7 +151,6 @@ def memoize(func):
 
     return wrapper
 
-@memoize
 def query_registry(key, value):
     keys = [key, key.replace("\\", "\\Wow6432Node\\", 1)]
 
