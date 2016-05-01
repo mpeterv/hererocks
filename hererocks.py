@@ -1652,7 +1652,7 @@ def main(argv=None):
     temp_dir = tempfile.mkdtemp()
 
     if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        setup_vs()
+        setup_vs(opts.target)
 
     start_dir = os.getcwd()
     opts.location = os.path.abspath(opts.location)
