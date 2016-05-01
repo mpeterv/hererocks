@@ -102,9 +102,12 @@ class TestCLI(unittest.TestCase):
 
     def test_install_lua_from_given_git_repo_with_luarocks_from_local_sources(self):
         local_luarocks = os.path.join("test", "luarocks")
-        self.assertSuccess([
-            "git", "clone", "https://github.com/keplerproject/luarocks",
-            "--depth=1", local_luarocks], from_prefix=False)
+
+        if not os.path.exists(local_luarocks):
+            self.assertSuccess([
+                "git", "clone", "https://github.com/keplerproject/luarocks",
+                "--depth=1", local_luarocks], from_prefix=False)
+
         self.assertHererocksSuccess(["--lua", "https://github.com/lua/lua@5.1.3-rc3", "--luarocks", local_luarocks])
         self.assertSuccess(["lua", "-v"], ["Lua 5.1.3"])
         self.assertHererocksSuccess(["--show"], [
