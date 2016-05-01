@@ -1414,20 +1414,25 @@ def get_wsdk_directory(vs_version):
     return query_registry(
         "Software\\Microsoft\\Microsoft SDKs\\Windows\\{}".format(wsdk_version), "InstallationFolder")
 
+vs_setup_scripts = {
+    "x86": ["vcvars32.bat"],
+    "x64": ["amd64\\vcvars64.bat", "x86_amd64\\vcvarsx86_amd64.bat"]
+}
+
 def get_vs_setup_cmd(vs_version, arch):
     vs_directory = get_vs_directory(vs_version)
 
     if vs_directory is not None:
+        for script_path in vs_setup_scripts[arch]:
+            full_script_path = os.path.join(vs_directory, "bin", script_path)
+
+            if check_existence(full_script_path):
+                return 'call "{}"'.format(full_script_path)
+
         vcvars_all_path = os.path.join(vs_directory, "vcvarsall.bat")
 
         if check_existence(vcvars_all_path):
-            return 'call "{}"{}'.format(vcvars_all_path, " x86_amd64" if arch == "x64" else "")
-
-        vcvars_arch_path = os.path.join(
-            vs_directory, "bin", "amd64\\vcvars64.bat" if arch == "x64" else "vcvars32.bat")
-
-        if check_existence(vcvars_arch_path):
-            return 'call "{}"'.format(vcvars_arch_path)
+            return 'call "{}"{}'.format(vcvars_all_path, " amd64" if arch == "x64" else "")
 
     wsdk_directory = get_wsdk_directory(vs_version)
 
