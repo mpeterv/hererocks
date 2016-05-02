@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import time
 import unittest
 
 class TestCLI(unittest.TestCase):
@@ -9,6 +10,13 @@ class TestCLI(unittest.TestCase):
         subprocess.check_call(["coverage", "erase"])
 
     def setUp(self):
+        if os.name == "nt":
+            # On Windows tests randomly fail here with errors such as 'can not remove here\bin: directory not empty'.
+            # Supposedly this happens because a file in the directory is still open, and on NFS
+            # deleting an open file leaves a file in the same directory. Waiting before attempting
+            # to remove directories seems to help.
+            time.sleep(1)
+
         for subdir in ["here", "builds"]:
             if os.path.exists(os.path.join("test", subdir)):
                 shutil.rmtree(os.path.join("test", subdir))
