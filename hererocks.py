@@ -1290,7 +1290,7 @@ class LuaRocks(Program):
                 "install.bat",
                 "/P", os.path.join(opts.location, "luarocks"),
                 "/LUA", opts.location,
-                "/FORCECONFIG",
+                "/FORCECONFIG", "/F"
             ]
             if opts.target == "mingw":
                 args += ["/MW"]
