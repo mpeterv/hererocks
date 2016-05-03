@@ -1602,8 +1602,9 @@ def main(argv=None):
                         help="Ignore checksum mismatches for downloads.",
                         action="store_true", default=False)
     parser.add_argument("--builds",
-                        # help="Cache Lua and LuaJIT builds in 'BUILDS' directory.",
-                        help=argparse.SUPPRESS, default=None)
+                        help="Cache Lua and LuaJIT builds in 'BUILDS' directory. "
+                        "A cached build is used when installing same program into "
+                        "same location with same options.", default=None)
     parser.add_argument("--verbose", default=False, action="store_true",
                         help="Show executed commands and their output.")
     parser.add_argument("-v", "--version", help="Show program's version number and exit.",
