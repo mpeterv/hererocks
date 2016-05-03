@@ -29,7 +29,7 @@ if os.name == "nt":
     except ImportError:
         import winreg
 
-hererocks_version = "Hererocks 0.6.2"
+hererocks_version = "Hererocks 0.7.0"
 __all__ = ["main"]
 
 opts = None
@@ -1574,14 +1574,14 @@ def main(argv=None):
         help="Pass additional options to C compiler when building Lua or LuaJIT.")
     parser.add_argument(
         "--target", help="Select how to build Lua. "
-        "Windows-specific targets (mingw, vs and vsXX_YY) also affect LuaJIT. "
+        "Windows-specific targets (mingw, vs, vs_XX and vsXX_YY) also affect LuaJIT. "
         "vs, vs_XX and vsXX_YY targets compile using cl.exe. "
         "vsXX_YY targets (such as vs15_32) always set up Visual Studio 20XX (YYbit). "
         "vs_32 and vs_64 pick latest version supporting selected architecture. "
         "vs target uses cl.exe that's already in PATH or sets up "
         "latest available Visual Studio, preferring tools for host architecture. "
         "It's the default target on Windows unless cl.exe is not in PATH but gcc is, "
-        "in which case mingw target is used."
+        "in which case mingw target is used. "
         "macosx target uses cc and the remaining targets use gcc, passing compiler "
         "and linker flags the same way Lua's Makefile does when running make <target>.",
         choices=[
