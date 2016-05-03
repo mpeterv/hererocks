@@ -1267,7 +1267,7 @@ class LuaRocks(Program):
 
         if lua_target == "mingw":
             return "MinGW Makefiles"
-        elif using_cl():
+        elif lua_target.startswith("vs"):
             vs_year = lua_identifiers["vs year"]
             vs_arch = lua_identifiers["vs arch"]
             vs_short_version = vs_year_to_version[vs_year][:-2]
@@ -1292,7 +1292,7 @@ class LuaRocks(Program):
                 "/LUA", opts.location,
                 "/FORCECONFIG", "/F"
             ]
-            if opts.target == "mingw":
+            if lua_identifiers["target"] == "mingw":
                 args += ["/MW"]
             # Since LuaRocks 2.0.13
             if "/LV" in help_text:
