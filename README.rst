@@ -73,7 +73,7 @@ Lua and LuaJIT have some flags that add compatibility with other Lua versions. L
 Installing standard PUC-Rio Lua
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.2.
+Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.3.
 
 Use ``5.1.0`` to install Lua ``5.1`` which was released without patch version for some reason.
 
