@@ -53,7 +53,6 @@ class TestCLI(unittest.TestCase):
         self.assertHererocksSuccess(["--show"], ["Programs installed in", "Compat: default"])
         self.assertSuccess(["lua", "-v"], ["Lua 5.3.2"])
         self.assertSuccess(["lua", "-e", "assert(bit32)"])
-        self.assertSuccess(["lua", "-e", "assert(coroutine.wrap(string.gmatch('x', '.'))() ~= 'x')"])
 
         self.assertSuccess(["luarocks", "--version"])
         self.assertSuccess(["luarocks", "make", os.path.join("test", "hererocks-test-scm-1.rockspec")])
@@ -82,12 +81,12 @@ class TestCLI(unittest.TestCase):
         self.assertSuccess(["luarocks", "--version"])
         self.assertSuccess(["luarocks", "make", os.path.join("test", "hererocks-test-scm-1.rockspec")])
 
-    def test_install_lua_5_3_with_patches(self):
-        self.assertHererocksSuccess(["--lua", "5.3", "--patch"])
+    def test_install_lua_5_3_2_with_patches(self):
+        self.assertHererocksSuccess(["--lua", "5.3.2", "--patch"])
         self.assertSuccess(["lua", "-e", "assert(coroutine.wrap(string.gmatch('x', '.'))() == 'x')"])
 
         if os.name == "nt":
-            self.assertHererocksSuccess(["--lua", "5.3", "--patch", "--target", "vs"])
+            self.assertHererocksSuccess(["--lua", "5.3.2", "--patch", "--target", "vs"])
             self.assertSuccess(["lua", "-e", "assert(coroutine.wrap(string.gmatch('x', '.'))() == 'x')"])
 
     def test_install_luajit_with_compat_with_apicheck(self):
