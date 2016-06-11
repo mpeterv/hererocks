@@ -11,6 +11,7 @@ import os
 import platform
 import re
 import shutil
+import stat
 import string
 import subprocess
 import sys
@@ -176,6 +177,16 @@ def check_existence(path):
 
 def copy_dir(src, dst):
     shutil.copytree(src, dst, ignore=lambda _, __: {".git"})
+
+def remove_read_only_or_reraise(func, path, exc_info):
+    if not os.access(path, os.W_OK):
+        os.chmod(path, stat.S_IWUSR)
+        func(path)
+    else:
+        raise
+
+def remove_dir(path):
+    shutil.rmtree(path, onerror=remove_read_only_or_reraise)
 
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
@@ -1198,7 +1209,7 @@ class LuaJIT(Lua):
             opts.location, "share", "lua", self.major_version, "jit")
 
         if os.path.exists(jitlib_path):
-            shutil.rmtree(jitlib_path)
+            remove_dir(jitlib_path)
 
         copy_dir("jit", jitlib_path)
 
@@ -1489,7 +1500,7 @@ def setup_vs_and_rerun(vs_version, arch):
         argv_h.write("\r\n".join(sys.argv).encode("UTF-8"))
 
     exit_code = subprocess.call([bat_name])
-    shutil.rmtree(temp_dir)
+    remove_dir(temp_dir)
     sys.exit(exit_code)
 
 def setup_vs(target):
@@ -1689,7 +1700,7 @@ def main(argv=None):
 
         os.chdir(start_dir)
 
-    shutil.rmtree(temp_dir)
+    remove_dir(temp_dir)
     print("Done.")
     sys.exit(0)
 

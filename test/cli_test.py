@@ -61,6 +61,9 @@ class TestCLI(unittest.TestCase):
         self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "latest"], ["already installed"])
         self.assertHererocksSuccess(["--luarocks", "latest", "--ignore-installed"], ["Fetching", "cached"])
 
+    def test_install_latest_lua_with_luarocks_from_git(self):
+        self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "https://github.com/mpeterv/luarocks@master"])
+
     def test_verbose_install_bleeding_edge_luajit_with_latest_luarocks(self):
         self.assertHererocksSuccess(["--luajit", "@v2.1", "--luarocks", "latest", "--verbose"])
         self.assertSuccess(["lua", "-v"], ["LuaJIT 2.1.0"])
