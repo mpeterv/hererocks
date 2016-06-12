@@ -9,7 +9,7 @@ readme.close()
 
 setuptools.setup(
     name="hererocks",
-    version="0.8.0",
+    version="0.8.1",
     description="Tool for installing Lua and LuaRocks locally",
     long_description=long_description,
     keywords="lua",
