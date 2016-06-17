@@ -1220,14 +1220,14 @@ class LuaRocks(Program):
     win32_zip = os.name == "nt"
     default_repo = "https://github.com/keplerproject/luarocks"
     versions = [
-        "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12",
+        "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12", "2.0.13",
         "2.1.0", "2.1.1", "2.1.2",
         "2.2.0", "2.2.1", "2.2.2",
         "2.3.0"
     ]
     translations = {
         "2": "2.3.0",
-        "2.0": "2.0.12",
+        "2.0": "2.0.13",
         "2.1": "2.1.2",
         "2.2": "2.2.2",
         "2.3": "2.3.0",
@@ -1242,6 +1242,8 @@ class LuaRocks(Program):
         "luarocks-2.0.11-win32.zip": "b0c2c149da49d70972178e3aec0a92a678b3daa2993dd6d6cdd56269730f8e12",
         "luarocks-2.0.12.tar.gz"   : "ad4b465c5dfbdce436ef746a434317110d79f18ff79202a2697e215f4ac407ed",
         "luarocks-2.0.12-win32.zip": "dfb7c7429541628903ec811f151ea19435d2182a9515db57542f6825802a1ae7",
+        "luarocks-2.0.13.tar.gz"   : "17db43664b555a467af74c91778d7e70937398da4325e3f88740621204a559a6",
+        "luarocks-2.0.13-win32.zip": "8d867ced0f47ee1d5a9c4c3ef7f4969ae91f4a817b8755bb9595168b20398740",
         "luarocks-2.0.8.tar.gz"    : "f8abf1ab03b744a817721a0ff4a0ee454e068735efaa8d1aadcfcd0f07cdaa88",
         "luarocks-2.0.8-win32.zip" : "109e2dd91c66a7fd69471fcd56b3276f57aef334a4a8f53776b94b1ebd58334e",
         "luarocks-2.0.9.tar.gz"    : "4e25a8052c6abe1685da1093e1adb59aa034106c9d335aa932f7b3b51297c63d",
