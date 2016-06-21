@@ -20,9 +20,9 @@ import tempfile
 import zipfile
 
 try:
-    from urllib import urlretrieve
+    from urllib2 import urlopen
 except ImportError:
-    from urllib.request import urlretrieve
+    from urllib.request import urlopen
 
 if os.name == "nt":
     try:
@@ -97,6 +97,13 @@ def get_default_cache():
             return None
         else:
             return os.path.join(home, ".cache", "hererocks")
+
+def download(url, filename):
+    response = urlopen(url)
+    data = response.read()
+
+    with open(filename, "wb") as out:
+        out.write(data)
 
 def run(*args, **kwargs):
     """Execute a command.
@@ -394,7 +401,7 @@ class Program(object):
 
         if not opts.downloads or not os.path.exists(archive_name):
             print(message)
-            urlretrieve(url, archive_name)
+            download(url, archive_name)
         else:
             print(message + " (cached)")
 
