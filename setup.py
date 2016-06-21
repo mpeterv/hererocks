@@ -9,7 +9,7 @@ readme.close()
 
 setuptools.setup(
     name="hererocks",
-    version="0.8.1",
+    version="0.9.0",
     description="Tool for installing Lua and LuaRocks locally",
     long_description=long_description,
     keywords="lua",
@@ -18,7 +18,7 @@ setuptools.setup(
     author_email="mpeterval@gmail.com",
     license="MIT",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
