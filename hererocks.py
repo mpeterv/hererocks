@@ -938,11 +938,8 @@ class RioLua(Lua):
     def apply_patch(self, patch_name):
         patch = self.all_patches[patch_name]
         err = Patch(patch).apply()
-
-        if opts.verbose:
-            status = "OK" if err is None else "fail - {}".format(err)
-            print('Patch for "{}": {}'.format(patch_name, status))
-
+        status = "OK" if err is None else "fail - {}".format(err)
+        print('Patch for "{}": {}'.format(patch_name, status))
         return err is None
 
     @staticmethod
@@ -992,7 +989,7 @@ class RioLua(Lua):
             return
 
         applied = sum(map(self.apply_patch, patches))
-        print("Using {} patch{} ({} available)".format(
+        print("Applied {} patch{} ({} available for this version)".format(
             applied, "" if applied == 1 else "es", len(patches)))
 
     def make(self):
