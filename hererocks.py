@@ -785,7 +785,7 @@ class RioLua(Lua):
                z->p = NULL;
             +  z->eoz = 0;
              }
-            """,
+        """,
         "Metatable may access its own deallocated field when it has a self reference in __newindex": """
             lvm.c:
             @@ -190,18 +190,19 @@
@@ -813,7 +813,7 @@ class RioLua(Lua):
                      return;
                    }
                    /* else will try the metamethod */
-            """,
+        """,
         "Label between local definitions can mix-up their initializations": """
             lparser.c:
             @@ -1226,7 +1226,7 @@
@@ -825,7 +825,7 @@ class RioLua(Lua):
                skipnoopstat(ls);  /* skip other no-op statements */
                if (block_follow(ls, 0)) {  /* label is last no-op statement in the block? */
                  /* assume that locals are already out of scope */
-            """,
+        """,
         "gmatch iterator fails when called from a coroutine different from the one that created it": """
             lstrlib.c:
             @@ -688,6 +688,7 @@
@@ -836,7 +836,32 @@ class RioLua(Lua):
                for (src = gm->src; src <= gm->ms.src_end; src++) {
                  const char *e;
                  reprepstate(&gm->ms);
-            """
+        """,
+        "Expression list with four or more expressions in a 'for' loop can crash the interpreter": """
+            lparser.c:
+            @@ -323,6 +323,8 @@
+                   luaK_nil(fs, reg, extra);
+                 }
+               }
+            +  if (nexps > nvars)
+            +    ls->fs->freereg -= nexps - nvars;  /* remove extra values */
+             }
+
+
+            @@ -1160,11 +1162,8 @@
+                 int nexps;
+                 checknext(ls, '=');
+                 nexps = explist(ls, &e);
+            -    if (nexps != nvars) {
+            +    if (nexps != nvars)
+                   adjust_assign(ls, nvars, nexps, &e);
+            -      if (nexps > nvars)
+            -        ls->fs->freereg -= nexps - nvars;  /* remove extra values */
+            -    }
+                 else {
+                   luaK_setoneret(ls->fs, &e);  /* close last expression */
+                   luaK_storevar(ls->fs, &lh->v, &e);
+        """
     }
     patches_per_version = {
         "5.1": {
@@ -849,6 +874,9 @@ class RioLua(Lua):
                 "Metatable may access its own deallocated field when it has a self reference in __newindex",
                 "Label between local definitions can mix-up their initializations",
                 "gmatch iterator fails when called from a coroutine different from the one that created it"
+            ],
+            "3": [
+                "Expression list with four or more expressions in a 'for' loop can crash the interpreter"
             ]
         }
     }
