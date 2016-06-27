@@ -21,7 +21,7 @@ Basic usage
   lua53/bin/luarocks --version        # Same for LuaRocks.
   lua53/bin/luarocks install luacheck # Libraries and programs installed with LuaRocks end up in
   lua53/bin/luacheck --version        # lua53 directory, too, with scripts in lua53/bin.
-  export PATH="$PWD/lua53/bin:$PATH"  # Add it to PATH it to run programs directly,
+  export PATH="$PWD/lua53/bin:$PATH"  # Add it to PATH to run programs directly,
   lua -v                              # without lua53/bin prefix.
 
 For more info see below or run ``hererocks --help`` for a complete listing of options.
