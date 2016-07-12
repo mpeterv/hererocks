@@ -1798,8 +1798,8 @@ def main(argv=None):
 
     identifiers = get_installed_identifiers()
 
-    if not os.path.exists(opts.location):
-        os.makedirs(opts.location)
+    if not os.path.exists(os.path.join(opts.location, "bin")):
+        os.makedirs(os.path.join(opts.location, "bin"))
 
     write_activation_scripts()
 
