@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 import zipfile
 
 try:
@@ -682,9 +683,8 @@ class FilePatch(object):
 class Patch(object):
     def __init__(self, src):
         # The first and the last lines are empty.
-        lines = src.splitlines()[1:-1]
-        indent_length = len(lines[0]) - len(lines[0].lstrip())
-        lines = [line[indent_length:] or " " for line in lines]
+        lines = textwrap.dedent(src[1:-1]).splitlines()
+        lines = [line if line else " " for line in lines]
         self.file_patches = []
         file_lines = None
         file_name = None
