@@ -37,6 +37,97 @@ __all__ = ["main"]
 opts = None
 temp_dir = None
 
+activation_script_templates = {
+    "get_deactivated_path.lua": """
+        local path = os.getenv("PATH")
+        local hererocks_path = "#LOCATION_DQ#/bin"
+        local new_path_parts = {}
+        local for_fish = arg[1] == "--fish"
+
+        if for_fish then
+            io.stdout:write("set -gx PATH ")
+        end
+
+        for path_part in (path .. ":"):gmatch("([^:]*):") do
+            if path_part ~= hererocks_path then
+                if for_fish then
+                    path_part = "'" .. path_part:gsub("'", [['\'']]) .. "'"
+                end
+
+                table.insert(new_path_parts, path_part)
+            end
+        end
+
+        io.stdout:write(table.concat(new_path_parts, for_fish and " " or ":"))
+    """,
+    "activate": """
+        if declare -f -F deactivate-lua >/dev/null; then
+            deactivate-lua
+        fi
+
+        deactivate-lua () {
+            if [ -x '#LOCATION_SQ#/bin/lua' ]; then
+                PATH=`'#LOCATION_SQ#/bin/lua' '#LOCATION_SQ#/bin/get_deactivated_path.lua'`
+                export PATH
+
+                # Need to rehash under bash and zsh so that new PATH is taken into account.
+                if [ -n "${BASH-}" ] || [ -n "${ZSH_VERSION-}" ]; then
+                    hash -r 2>/dev/null
+                fi
+            fi
+
+            unset -f deactivate-lua
+        }
+
+        PATH='#LOCATION_SQ#/bin':"$PATH"
+        export PATH
+
+        # As in deactivate-lua, rehash after changing PATH.
+        if [ -n "${BASH-}" ] || [ -n "${ZSH_VERSION-}" ]; then
+            hash -r 2>/dev/null
+        fi
+    """,
+    "activate.csh": """
+        which deactivate-lua >&/dev/null && deactivate-lua
+
+        alias deactivate-lua 'if ( -x '\\''#LOCATION_NESTED_SQ#/bin/lua'\\'' ) then; setenv PATH `'\\''#LOCATION_NESTED_SQ#/bin/lua'\\'' '\\''#LOCATION_NESTED_SQ#/bin/get_deactivated_path.lua'\\''`; rehash; endif; unalias deactivate-lua'
+
+        setenv PATH '#LOCATION_SQ#/bin':"$PATH"
+        rehash
+    """,
+    "activate.fish": """
+        if functions -q deactivate-lua
+            deactivate-lua
+        end
+
+        function deactivate-lua
+            if test -x '#LOCATION_SQ#/bin/lua'
+                eval ('#LOCATION_SQ#/bin/lua' '#LOCATION_SQ#/bin/get_deactivated_path.lua' --fish)
+            end
+
+            functions -e deactivate-lua
+        end
+
+        set -gx PATH '#LOCATION_SQ#/bin' $PATH
+    """
+}
+
+def write_activation_scripts():
+    template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish"]
+
+    replacements = {
+        "LOCATION_DQ": opts.location.replace("\\", "\\\\").replace('"', '\\"'),
+        "LOCATION_SQ": opts.location.replace("'", "'\\''"),
+        "LOCATION_NESTED_SQ": opts.location.replace("'", "'\\''").replace("'", "'\\''")
+    }
+
+    for template_name in template_names:
+        with open(os.path.join(opts.location, "bin", template_name), "w") as script_handle:
+            template = activation_script_templates[template_name][1:]
+            template = textwrap.dedent(template)
+            script = re.sub(r'#([a-zA-Z_]+)#', lambda match: replacements[match.group(1)], template)
+            script_handle.write(script)
+
 def is_executable(path):
     return (os.path.exists(path) and
             os.access(path, os.F_OK | os.X_OK) and
@@ -551,8 +642,8 @@ class Lua(Program):
         self.package_cpath = ";".join(cmodule_path_parts)
 
     def add_package_paths_redefines(self):
-        package_path = self.package_path.replace("\\", "\\\\")
-        package_cpath = self.package_cpath.replace("\\", "\\\\")
+        package_path = self.package_path.replace("\\", "\\\\").replace('"', '\\"')
+        package_cpath = self.package_cpath.replace("\\", "\\\\").replace('"', '\\"')
         self.redefines.extend([
             "#undef LUA_PATH_DEFAULT",
             "#undef LUA_CPATH_DEFAULT",
@@ -1709,6 +1800,8 @@ def main(argv=None):
 
     if not os.path.exists(opts.location):
         os.makedirs(opts.location)
+
+    write_activation_scripts()
 
     if opts.lua:
         if "LuaJIT" in identifiers:
