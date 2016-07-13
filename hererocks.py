@@ -120,13 +120,28 @@ activation_script_templates = {
     """,
     "deactivate-lua.bat": """
         @echo off
-        if exist "#LOCATION#\\bin\\lua.exe" for /f "delims=" %%p in ('#LOCATION#\\bin\\lua #LOCATION#\\bin\\get_deactivated_path.lua') DO set "PATH=%%p"
+        if exist "#LOCATION#\\bin\\lua.exe" for /f "usebackq delims=" %%p in (`""#LOCATION#\\bin\\lua" "#LOCATION#\\bin\\get_deactivated_path.lua""`) DO set "PATH=%%p"
+    """,
+    "activate.ps1": """
+        if (test-path function:deactivate-lua) {
+            deactivate-lua
+        }
+
+        function global:deactivate-lua () {
+            if (test-path "#LOCATION#\\bin\\lua.exe") {
+                $env:PATH = & "#LOCATION#\\bin\\lua.exe" "#LOCATION#\\bin\\get_deactivated_path.lua"
+            }
+
+            remove-item function:deactivate-lua
+        }
+
+        $env:PATH = "#LOCATION#\\bin;" + $env:PATH
     """
 }
 
 def write_activation_scripts():
     if os.name == "nt":
-        template_names = ["get_deactivated_path.lua", "activate.bat", "deactivate-lua.bat"]
+        template_names = ["get_deactivated_path.lua", "activate.bat", "deactivate-lua.bat", "activate.ps1"]
     else:
         template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish"]
 
