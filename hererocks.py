@@ -40,7 +40,9 @@ temp_dir = None
 activation_script_templates = {
     "get_deactivated_path.lua": """
         local path = os.getenv("PATH")
-        local hererocks_path = "#LOCATION_DQ#/bin"
+        local dir_sep = package.config:sub(1, 1)
+        local path_sep = dir_sep == "\\\\" and ";" or ":"
+        local hererocks_path = "#LOCATION_DQ#" .. dir_sep .. "bin"
         local new_path_parts = {}
         local for_fish = arg[1] == "--fish"
 
@@ -48,7 +50,7 @@ activation_script_templates = {
             io.stdout:write("set -gx PATH ")
         end
 
-        for path_part in (path .. ":"):gmatch("([^:]*):") do
+        for path_part in (path .. path_sep):gmatch("([^" .. path_sep .. "]*)" .. path_sep) do
             if path_part ~= hererocks_path then
                 if for_fish then
                     path_part = "'" .. path_part:gsub("'", [['\'']]) .. "'"
@@ -58,7 +60,7 @@ activation_script_templates = {
             end
         end
 
-        io.stdout:write(table.concat(new_path_parts, for_fish and " " or ":"))
+        io.stdout:write(table.concat(new_path_parts, for_fish and " " or path_sep))
     """,
     "activate": """
         if declare -f -F deactivate-lua >/dev/null; then
@@ -109,13 +111,27 @@ activation_script_templates = {
         end
 
         set -gx PATH '#LOCATION_SQ#/bin' $PATH
+    """,
+    "activate.bat": """
+        @echo off
+        where deactivate-lua >nul 2>nul
+        if %errorlevel% equ 0 call deactivate-lua
+        set "PATH=#LOCATION#\\bin;%PATH%"
+    """,
+    "deactivate-lua.bat": """
+        @echo off
+        if exist "#LOCATION#\\bin\\lua.exe" for /f "delims=" %%p in ('#LOCATION#\\bin\\lua #LOCATION#\\bin\\get_deactivated_path.lua') DO set "PATH=%%p"
     """
 }
 
 def write_activation_scripts():
-    template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish"]
+    if os.name == "nt":
+        template_names = ["get_deactivated_path.lua", "activate.bat", "deactivate-lua.bat"]
+    else:
+        template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish"]
 
     replacements = {
+        "LOCATION": opts.location,
         "LOCATION_DQ": opts.location.replace("\\", "\\\\").replace('"', '\\"'),
         "LOCATION_SQ": opts.location.replace("'", "'\\''"),
         "LOCATION_NESTED_SQ": opts.location.replace("'", "'\\''").replace("'", "'\\''")
