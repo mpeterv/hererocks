@@ -31,7 +31,7 @@ if os.name == "nt":
     except ImportError:
         import winreg
 
-hererocks_version = "Hererocks 0.9.0"
+hererocks_version = "Hererocks 0.10.0"
 __all__ = ["main"]
 
 opts = None
@@ -1700,10 +1700,10 @@ def main(argv=None):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter, add_help=False)
     parser.add_argument(
         "location", help="Path to directory in which Lua and/or LuaRocks will be installed. "
-        "Their binaries will be found in its 'bin' subdirectory. "
+        "Their binaries and activation scripts will be found in its 'bin' subdirectory. "
         "Scripts from modules installed using LuaRocks will also turn up there. "
         "If an incompatible version of Lua is already installed there it should be "
-        "removed before installing the new one. ")
+        "removed before installing the new one.")
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "

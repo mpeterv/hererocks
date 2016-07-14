@@ -16,13 +16,13 @@ Basic usage
 
 .. code-block:: bash
 
-  hererocks lua53 -l5.3 -rlatest      # Install Lua 5.3 with latest LuaRocks into lua53 directory.
-  lua53/bin/lua -v                    # Lua can now be run from lua53/bin directory.
-  lua53/bin/luarocks --version        # Same for LuaRocks.
-  lua53/bin/luarocks install luacheck # Libraries and programs installed with LuaRocks end up in
-  lua53/bin/luacheck --version        # lua53 directory, too, with scripts in lua53/bin.
-  export PATH="$PWD/lua53/bin:$PATH"  # Add it to PATH to run programs directly,
-  lua -v                              # without lua53/bin prefix.
+  hererocks lua53 -l5.3 -rlatest      # Install Lua 5.3 with latest LuaRocks into 'lua53' directory.
+  source lua53/bin/activate           # Run activation script, adding 'lua53/bin' to $PATH.
+  lua -v                              # Lua, LuaRocks, and programs
+  luarocks install luacheck           # installed using LuaRocks
+  luacheck --version                  # can now be used.
+  deactivate-lua                      # Remove 'lua53/bin' from $PATH.
+  lua53/bin/lua -v                    # All the binaries can still be used directly.
 
 For more info see below or run ``hererocks --help`` for a complete listing of options.
 
@@ -42,7 +42,29 @@ Requirements
 
   * Windows: MinGW with tools such as ``gcc`` in PATH, or Visual Studio 2008 or later (see help message for ``--target``).
   * OS X: ``cc``.
-  * Other: ``gcc``.
+  * Other systems: ``gcc``.
+
+Activation scripts
+------------------
+
+``hererocks`` writes several activation scripts into ``bin`` subdirectory of the installation directory.
+When sourced (on Windows: simply executed) they add path to that subdirectory to ``PATH`` environment variable.
+This allows one to use ``lua``, ``luarocks`` and other programs installed in the created environment directly.
+Additionally, activation scripts make ``deactivate-lua`` command available. It removes path to currently activated
+environment from ``PATH``. Activating an environment deactivates the previous one automatically, if it exists.
+
+Several versions of activation scripts are installed to support various shells:
+
+* Windows:
+
+  * Batch: ``activate.bat``.
+  * PowerShell: ``activate.ps1``.
+
+* Other systems:
+
+  * Bash, Zsh, Dash: ``activate``.
+  * Fish: ``activate.fish``.
+  * Tcsh, csh: ``activate.csh``.
 
 Command-line options
 --------------------
@@ -112,7 +134,7 @@ Popular continuous integration services such as `Travis-CI <https://travis-ci.or
   before_install:
     - pip install hererocks
     - hererocks env --$LUA -rlatest    # Use latest LuaRocks, install into 'env' directory.
-    - export PATH="$PWD/env/bin:$PATH" # Add directory with all installed binaries to PATH.
+    - source env/bin/activate          # Add directory with all installed binaries to PATH.
     - luarocks install busted
 
   install:
@@ -135,9 +157,10 @@ Equivalent configuration (``appveyor.yml``) for `Appveyor <http://www.appveyor.c
     - LUA: "luajit 2.1"
 
   before_build:
-    - set PATH=%CD%\env\bin;C:\Python27\Scripts;%PATH% # Add directory containing 'pip'
-    - pip install hererocks                            # to PATH, too.
+    - set PATH=C:\Python27\Scripts;%PATH% # Add directory containing 'pip' to PATH
+    - pip install hererocks
     - hererocks env --%LUA% -rlatest
+    - call env\bin\activate
     - luarocks install busted
 
   build_script:
