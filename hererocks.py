@@ -120,7 +120,7 @@ activation_script_templates = {
     """,
     "deactivate-lua.bat": """
         @echo off
-        if exist "#LOCATION#\\bin\\lua.exe" for /f "usebackq delims=" %%p in (`""#LOCATION#\\bin\\lua" "#LOCATION#\\bin\\get_deactivated_path.lua""`) DO set "PATH=%%p"
+        if exist "#LOCATION#\\bin\\lua.exe" for /f "usebackq delims=" %%p in (`""#LOCATION_PAREN#\\bin\\lua" "#LOCATION_PAREN#\\bin\\get_deactivated_path.lua""`) DO set "PATH=%%p"
     """,
     "activate.ps1": """
         if (test-path function:deactivate-lua) {
@@ -149,7 +149,8 @@ def write_activation_scripts():
         "LOCATION": opts.location,
         "LOCATION_DQ": opts.location.replace("\\", "\\\\").replace('"', '\\"'),
         "LOCATION_SQ": opts.location.replace("'", "'\\''"),
-        "LOCATION_NESTED_SQ": opts.location.replace("'", "'\\''").replace("'", "'\\''")
+        "LOCATION_NESTED_SQ": opts.location.replace("'", "'\\''").replace("'", "'\\''"),
+        "LOCATION_PAREN": re.sub("[&,=()]", "^\g<0>", opts.location)
     }
 
     for template_name in template_names:
