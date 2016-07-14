@@ -43,10 +43,10 @@ class TestCLI(unittest.TestCase):
                     raise AssertionError("Expected to see '{}' in output of command '{}', got output:\n{}".format(
                         expected_output_line, " ".join(args), output))
 
-    def assertHererocksSuccess(self, args, expected_output_lines=None):
+    def assertHererocksSuccess(self, args, expected_output_lines=None, location="here"):
         self.assertSuccess([
             "coverage", "run", "-a",
-            "hererocks.py", os.path.join("test", "here")] + args, expected_output_lines, from_prefix=False)
+            "hererocks.py", os.path.join("test", location)] + args, expected_output_lines, from_prefix=False)
 
     def test_install_latest_lua_with_latest_luarocks(self):
         self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "latest"])
@@ -122,3 +122,21 @@ class TestCLI(unittest.TestCase):
         self.assertSuccess(["lua", "-v"], ["Lua 5.1.3"])
         self.assertHererocksSuccess(["--show"], [
             "Lua 5.1", "cloned from https://github.com/lua/lua", "from local sources"])
+
+    def test_activate_scripts(self):
+        self.assertHererocksSuccess(["--lua", "5.1"], location=os.path.join("here", "bad (dir) 1"))
+        self.assertHererocksSuccess(["--lua", "5.2"], location=os.path.join("here", "bad (dir) 2"))
+        checker = os.path.join("test", "check_activate." + ("bat" if os.name == "nt" else "sh"))
+
+        path = os.getenv("PATH")
+        path1 = os.path.abspath(os.path.join("test", "here", "bad (dir) 1", "bin"))
+        path2 = os.path.abspath(os.path.join("test", "here", "bad (dir) 2", "bin"))
+        self.assertSuccess([checker], [
+            "initial: {}".format(path),
+            "activate 1: {}{}{}".format(path1, os.pathsep, path),
+            "deactivate 1: {}".format(path),
+            "activate 1 again: {}{}{}".format(path1, os.pathsep, path),
+            "reactivate 1: {}{}{}".format(path1, os.pathsep, path),
+            "activate 2: {}{}{}".format(path2, os.pathsep, path),
+            "deactivate 2: {}".format(path)
+        ], from_prefix=False)
