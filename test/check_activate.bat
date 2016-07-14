@@ -1,3 +1,5 @@
+@echo off
+
 echo "initial: %PATH%"
 
 call "test\here\bad (dir) 1\bin\activate"

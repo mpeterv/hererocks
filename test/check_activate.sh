@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 echo "initial: $PATH"
 
 source "test/here/bad (dir) 1/bin/activate"
