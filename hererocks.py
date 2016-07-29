@@ -215,9 +215,9 @@ def get_default_cache():
 
         return os.path.join(cache_root, "HereRocks", "Cache")
     else:
-        home = os.getenv("HOME")
+        home = os.path.expanduser("~")
 
-        if home is None:
+        if home == "~":
             return None
         else:
             return os.path.join(home, ".cache", "hererocks")
