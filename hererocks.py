@@ -984,6 +984,27 @@ class RioLua(Lua):
                  else {
                    luaK_setoneret(ls->fs, &e);  /* close last expression */
                    luaK_storevar(ls->fs, &lh->v, &e);
+        """,
+        "Checking a format for os.date may read past the format string": """
+            loslib.c:
+            @@ -263,1 +263,2 @@
+            -  for (option = LUA_STRFTIMEOPTIONS; *option != '\\0'; option += oplen) {
+            +  int convlen = (int)strlen(conv);
+            +  for (option = LUA_STRFTIMEOPTIONS; *option != '\\0' && oplen <= convlen; option += oplen) {
+        """,
+        "Lua can generate wrong code in functions with too many constants": """
+            lcode.c:
+            @@ -1017,8 +1017,8 @@
+             */
+             static void codebinexpval (FuncState *fs, OpCode op,
+                                        expdesc *e1, expdesc *e2, int line) {
+            -  int rk1 = luaK_exp2RK(fs, e1);  /* both operands are "RK" */
+            -  int rk2 = luaK_exp2RK(fs, e2);
+            +  int rk2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
+            +  int rk1 = luaK_exp2RK(fs, e1);
+               freeexps(fs, e1, e2);
+               e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);  /* generate opcode */
+               e1->k = VRELOCABLE;  /* all those operations are relocatable */
         """
     }
     patches_per_version = {
@@ -999,7 +1020,9 @@ class RioLua(Lua):
                 "gmatch iterator fails when called from a coroutine different from the one that created it"
             ],
             "3": [
-                "Expression list with four or more expressions in a 'for' loop can crash the interpreter"
+                "Expression list with four or more expressions in a 'for' loop can crash the interpreter",
+                "Checking a format for os.date may read past the format string",
+                "Lua can generate wrong code in functions with too many constants"
             ]
         }
     }
