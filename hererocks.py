@@ -1468,8 +1468,8 @@ class Ravi(Lua):
                 """#!/bin/sh
 export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
 exec "{exe}" "$@\"""".format(
-                lib_dir=os.path.join(opts.location, "lib"),
-                exe=os.path.join(opts.location, "bin", exe("ravi")))
+                    lib_dir=os.path.join(opts.location, "lib"),
+                    exe=os.path.join(opts.location, "bin", exe("ravi")))
             )
         # chmod +x
         st = os.stat(lua_file)
@@ -1565,9 +1565,8 @@ class LuaRocks(Program):
                 vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
     def build(self):
-        lua_identifiers = self.all_identifiers.get("lua",
-            self.all_identifiers.get("LuaJIT",
-                self.all_identifiers.get("ravi")))
+        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get(
+            "LuaJIT", self.all_identifiers.get("ravi")))
 
         if lua_identifiers is None:
             sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
