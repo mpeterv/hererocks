@@ -13,7 +13,6 @@ import re
 import shutil
 import stat
 import string
-import stat
 import subprocess
 import sys
 import tarfile
@@ -600,9 +599,8 @@ class Lua(Program):
         self.add_package_paths_redefines()
         self.add_compat_cflags_and_redefines()
 
-    @staticmethod
-    def major_version_from_source():
-        with open(os.path.join("src", "lua.h")) as lua_h:
+    def major_version_from_source(self):
+        with open(self.lua_h_path()) as lua_h:
             for line in lua_h:
                 match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
 
@@ -686,6 +684,9 @@ class Lua(Program):
 
     def luaconf_h_path(self):
         return os.path.join("src", "luaconf.h")
+
+    def lua_h_path(self):
+        return os.path.join("src", "lua.h")
 
     def patch_redefines(self):
         redefines = "\n".join(self.redefines)
@@ -1400,11 +1401,12 @@ class Ravi(Lua):
     title = "Ravi"
     downloads = "https://github.com/dibyendumajumdar/ravi/archive"
     win32_zip = False
-    default_repo = "https://github.com/dibyendumajumdar/ravi/archive"
+    default_repo = "https://github.com/dibyendumajumdar/ravi"
     versions = [
         "0.15.1",
     ]
     translations = {
+        "0": "0.15.1",
         "0.15": "0.15.1",
         "^": "0.15.1",
         "latest": "0.15.1"
@@ -1413,14 +1415,14 @@ class Ravi(Lua):
         "ravi-0.15.1.tar.gz"   : "c42b4540a37f763904895f7fb5757f0ce0e5185e7c3e5316eb056a1ac505134d",
     }
 
-    def __init__(self, version):
-        super(Ravi, self).__init__(version)
-
     def get_download_url(self):
         return self.downloads + "/" + self.fixed_version + ".tar.gz"
 
     def luaconf_h_path(self):
         return os.path.join("include", "luaconf.h")
+
+    def lua_h_path(self):
+        return os.path.join("include", "lua.h")
 
     @staticmethod
     def major_version_from_version():
@@ -1431,7 +1433,7 @@ class Ravi(Lua):
         pass
 
     def set_compat(self):
-        self.compat = "5.2"
+        self.compat = "default"
 
     def add_compat_cflags_and_redefines(self):
         pass
@@ -1464,11 +1466,10 @@ class Ravi(Lua):
         with open(lua_file, "w") as lua_exe:
             lua_exe.write(
                 """#!/bin/sh
-export LD_LIBRARY_PATH="%(lib_dir)s:$LD_LIBRARY_PATH"
-exec "%(exe)s" "$@" """ % {
-                    "lib_dir": os.path.join(opts.location, "lib"),
-                    "exe": os.path.join(opts.location, "bin", exe("ravi")),
-                }
+export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
+exec "{exe}" "$@\"""".format(
+                    lib_dir=os.path.join(opts.location, "lib"),
+                    exe=os.path.join(opts.location, "bin", exe("ravi")))
             )
         # chmod +x
         st = os.stat(lua_file)
@@ -1564,10 +1565,8 @@ class LuaRocks(Program):
                 vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
     def build(self):
-        lua_identifiers = any(
-            self.all_identifiers.get(name)
-            for name in ["lua", "LuaJIT", "ravi"]
-        )
+        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get(
+            "LuaJIT", self.all_identifiers.get("ravi")))
 
         if lua_identifiers is None:
             sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
@@ -1989,7 +1988,9 @@ def main(argv=None):
         if "LuaJIT" in identifiers:
             del identifiers["LuaJIT"]
 
-        identifiers_changed = Ravi(opts.ravi).update_identifiers(identifiers)
+        if Ravi(opts.ravi).update_identifiers(identifiers):
+            save_installed_identifiers(identifiers)
+
         os.chdir(start_dir)
 
     if opts.luarocks:
