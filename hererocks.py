@@ -1963,7 +1963,7 @@ def main(argv=None):
     global temp_dir
     temp_dir = tempfile.mkdtemp()
 
-    if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
+    if (opts.lua or opts.luajit or opts.ravi) and os.name == "nt" and argv is None and using_cl():
         setup_vs(opts.target)
 
     start_dir = os.getcwd()
