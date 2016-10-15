@@ -1468,11 +1468,11 @@ class Ravi(Lua):
                 find_in_dir("libravi.dll", "build"),
                 os.path.join(opts.location, "bin", "libravi.dll"),
             )
-            lib_ext = "lib" if using_cl() else "dll.a"
-            lib_file = "libravi." + lib_ext
+            arch_ext = "lib" if using_cl() else "dll.a"
+            arch_file = "libravi." + arch_ext
             shutil.copy(
-                find_in_dir(lib_file, "build"),
-                os.path.join(opts.location, "lib", lib_file),
+                find_in_dir(arch_file, "build"),
+                os.path.join(opts.location, "lib", arch_file),
             )
             # copy binary to "lua.exe"
             shutil.copy(
@@ -1480,9 +1480,11 @@ class Ravi(Lua):
                 os.path.join(opts.location, "bin", exe("lua")),
             )
         else:
+            dll_ext = "dylib" if opts.target == "macosx" else "so"
+            dll_file = "libravi." + dll_ext
             shutil.copy(
-                find_in_dir("libravi.so", "build"),
-                os.path.join(opts.location, "lib", "libravi.so"),
+                find_in_dir(dll_file, "build"),
+                os.path.join(opts.location, "lib", dll_file),
             )
             # create shell wrapper
             lua_file = os.path.join(opts.location, "bin", exe("lua"))
@@ -1490,6 +1492,7 @@ class Ravi(Lua):
                 lua_exe.write(
                     '''#!/bin/sh
 export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="{lib_dir}:$DYLD_LIBRARY_PATH"
 exec "{exe}" "$@"'''.format(
                         lib_dir=os.path.join(opts.location, "lib"),
                         exe=os.path.join(opts.location, "bin", exe("ravi")))
