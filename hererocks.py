@@ -1463,21 +1463,27 @@ class Ravi(Lua):
             os.path.join(opts.location, "bin", exe("ravi")),
         )
 
-        so_extension = ".dll" if os.name == "nt" else ".so"
-        so_dir = "bin" if os.name == "nt" else "lib"
-        so_file = "libravi" + so_extension
-        shutil.copy(
-            find_in_dir(so_file, "build"),
-            os.path.join(opts.location, so_dir, so_file),
-        )
-
         if os.name == "nt":
+            shutil.copy(
+                find_in_dir("libravi.dll", "build"),
+                os.path.join(opts.location, "bin", "libravi.dll"),
+            )
+            lib_ext = "lib" if using_cl() else "dll.a"
+            lib_file = "libravi." + lib_ext
+            shutil.copy(
+                find_in_dir(lib_file, "build"),
+                os.path.join(opts.location, "lib", lib_file),
+            )
             # copy binary to "lua.exe"
             shutil.copy(
                 os.path.join(opts.location, "bin", exe("ravi")),
                 os.path.join(opts.location, "bin", exe("lua")),
             )
         else:
+            shutil.copy(
+                find_in_dir("libravi.so", "build"),
+                os.path.join(opts.location, "lib", "libravi.so"),
+            )
             # create shell wrapper
             lua_file = os.path.join(opts.location, "bin", exe("lua"))
             with open(lua_file, "w") as lua_exe:
@@ -1500,10 +1506,6 @@ exec "{exe}" "$@"'''.format(
                 os.path.join("include", header),
                 os.path.join(opts.location, "include", header),
             )
-
-        if os.name == "nt":
-            pass
-            # TODO
 
 class LuaRocks(Program):
     name = "luarocks"
