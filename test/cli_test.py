@@ -99,8 +99,9 @@ class TestCLI(unittest.TestCase):
             self.assertHererocksSuccess([
                 "--luajit", "latest", "--compat", "5.2", "--cflags=-DLUA_USE_APICHECK", "--target", "vs"])
 
-    def test_install_latest_ravi_with_latest_luarocks(self):
-        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "latest", "--verbose"])
+    def test_install_latest_ravi_with_luarocks_2_3_0(self):
+        # luarocks 2.4.0 fails Lua version check on Windows for "Ravi 5.3"
+        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "2.3.0", "--verbose"])
         self.assertSuccess(["lua", "-v"], ["Ravi 5.3.2"])
         self.assertSuccess(["lua", "-e", "local t: table = {}"])
 
@@ -108,7 +109,7 @@ class TestCLI(unittest.TestCase):
         self.assertSuccess(["luarocks", "make", os.path.join("test", "hererocks-test-scm-1.rockspec")])
         self.assertSuccess(["hererocks-test"], ["Ravi 5.3"])
 
-        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "latest"], ["already installed"])
+        self.assertHererocksSuccess(["--ravi", "latest", "--luarocks", "2.3.0"], ["already installed"])
 
     def test_cached_lua_5_2_build(self):
         self.assertHererocksSuccess(
