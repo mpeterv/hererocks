@@ -1442,7 +1442,7 @@ class Ravi(Lua):
         os.mkdir("build")
         os.chdir("build")
         run("cmake", "-DCMAKE_BUILD_TYPE=Release", "..")
-        run("make")
+        run("cmake", "--build", ".", "--config", "Release")
         os.chdir("..")
 
     def make_install(self):
