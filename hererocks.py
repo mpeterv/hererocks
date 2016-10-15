@@ -319,6 +319,13 @@ def remove_read_only_or_reraise(func, path, exc_info):
 def remove_dir(path):
     shutil.rmtree(path, onerror=remove_read_only_or_reraise)
 
+def find_in_dir(filename, root):
+    for directory, _, files in os.walk(root):
+        for f in files:
+            if f == filename:
+                return os.path.join(directory, f)
+    raise Exception("Unable to find %s in %s" % (filename, root))
+
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
     "http://bitbucket.com/", "https://bitbucket.com/"
@@ -1452,14 +1459,16 @@ class Ravi(Lua):
                 os.mkdir(path)
 
         shutil.copy(
-            os.path.join("build", exe("ravi")),
+            find_in_dir(exe("ravi"), "build"),
             os.path.join(opts.location, "bin", exe("ravi")),
         )
 
-        so_file = "libravi.so"
+        so_extension = ".dll" if os.name == "nt" else ".so"
+        so_dir = "bin" if os.name == "nt" else "lib"
+        so_file = "libravi" + so_extension
         shutil.copy(
-            os.path.join("build", so_file),
-            os.path.join(opts.location, "lib", so_file),
+            find_in_dir(so_file, "build"),
+            os.path.join(opts.location, so_dir, so_file),
         )
 
         lua_file = os.path.join(opts.location, "bin", exe("lua"))
