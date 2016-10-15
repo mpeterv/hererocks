@@ -1471,18 +1471,29 @@ class Ravi(Lua):
             os.path.join(opts.location, so_dir, so_file),
         )
 
-        lua_file = os.path.join(opts.location, "bin", exe("lua"))
-        with open(lua_file, "w") as lua_exe:
-            lua_exe.write(
-                """#!/bin/sh
-export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
-exec "{exe}" "$@\"""".format(
-                    lib_dir=os.path.join(opts.location, "lib"),
-                    exe=os.path.join(opts.location, "bin", exe("ravi")))
+        if os.name == "nt":
+            # copy binary to "lua.exe"
+            shutil.copy(
+                os.path.join(opts.location, "bin", exe("ravi")),
+                os.path.join(opts.location, "bin", exe("lua")),
             )
-        # chmod +x
-        st = os.stat(lua_file)
-        os.chmod(lua_file, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        else:
+            # create shell wrapper
+            lua_file = os.path.join(opts.location, "bin", exe("lua"))
+            with open(lua_file, "w") as lua_exe:
+                lua_exe.write(
+                    '''#!/bin/sh
+export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
+exec "{exe}" "$@"'''.format(
+                        lib_dir=os.path.join(opts.location, "lib"),
+                        exe=os.path.join(opts.location, "bin", exe("ravi")))
+                )
+            # chmod +x
+            st = os.stat(lua_file)
+            os.chmod(
+                lua_file,
+                st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH,
+            )
 
         for header in os.listdir("include"):
             shutil.copy(
