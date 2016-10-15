@@ -570,6 +570,22 @@ class Program(object):
             self.identifiers["repo"] = self.repo
             self.identifiers["commit"] = self.commit
 
+        self.identifiers["target"] = opts.target
+
+        if using_cl():
+            cl_help = get_output("cl")
+            cl_version = re.search(r"(1[56789])\.\d+", cl_help)
+            cl_arch = re.search(r"(x(?:86)|(?:64))", cl_help)
+
+            if not cl_version or not cl_arch:
+                sys.exit("Error: couldn't determine cl.exe version and architecture")
+
+            cl_version = cl_version.group(1)
+            cl_arch = cl_arch.group(1)
+
+            self.identifiers["vs year"] = cl_version_to_vs_year[cl_version]
+            self.identifiers["vs arch"] = cl_arch
+
     def update_identifiers(self, all_identifiers):
         self.all_identifiers = all_identifiers
         installed_identifiers = all_identifiers.get(self.name)
@@ -584,6 +600,18 @@ class Program(object):
         self.install()
         all_identifiers[self.name] = self.identifiers
         return True
+
+    @staticmethod
+    def get_cmake_generator(lua_identifiers):
+        lua_target = lua_identifiers["target"]
+        if lua_target == "mingw":
+            return "MinGW Makefiles"
+        elif lua_target.startswith("vs"):
+            vs_year = lua_identifiers["vs year"]
+            vs_arch = lua_identifiers["vs arch"]
+            vs_short_version = vs_year_to_version[vs_year][:-2]
+            return "Visual Studio {} 20{}{}".format(
+                vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
 class Lua(Program):
     def __init__(self, version):
@@ -619,25 +647,10 @@ class Lua(Program):
     def set_identifiers(self):
         super(Lua, self).set_identifiers()
 
-        self.identifiers["target"] = opts.target
         self.identifiers["compat"] = self.compat
         self.identifiers["c flags"] = opts.cflags or ""
         self.identifiers["location"] = opts.location
         self.identifiers["major version"] = self.major_version
-
-        if using_cl():
-            cl_help = get_output("cl")
-            cl_version = re.search(r"(1[56789])\.\d+", cl_help)
-            cl_arch = re.search(r"(x(?:86)|(?:64))", cl_help)
-
-            if not cl_version or not cl_arch:
-                sys.exit("Error: couldn't determine cl.exe version and architecture")
-
-            cl_version = cl_version.group(1)
-            cl_arch = cl_arch.group(1)
-
-            self.identifiers["vs year"] = cl_version_to_vs_year[cl_version]
-            self.identifiers["vs arch"] = cl_arch
 
     def add_options_to_version_suffix(self):
         options = []
@@ -1446,9 +1459,13 @@ class Ravi(Lua):
         pass
 
     def make(self):
+        cmake_generator = self.get_cmake_generator(self.identifiers)
         os.mkdir("build")
         os.chdir("build")
-        run("cmake", "-DCMAKE_BUILD_TYPE=Release", "..")
+        args = ["-DCMAKE_BUILD_TYPE=Release", ".."]
+        if cmake_generator is not None:
+            args = ["-G", cmake_generator] + args
+        run("cmake", *args)
         run("cmake", "--build", ".", "--config", "Release")
         os.chdir("..")
 
@@ -1575,19 +1592,6 @@ class LuaRocks(Program):
                     return True
 
         return False
-
-    @staticmethod
-    def get_cmake_generator(lua_identifiers):
-        lua_target = lua_identifiers["target"]
-
-        if lua_target == "mingw":
-            return "MinGW Makefiles"
-        elif lua_target.startswith("vs"):
-            vs_year = lua_identifiers["vs year"]
-            vs_arch = lua_identifiers["vs arch"]
-            vs_short_version = vs_year_to_version[vs_year][:-2]
-            return "Visual Studio {} 20{}{}".format(
-                vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
     def build(self):
         lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get(
