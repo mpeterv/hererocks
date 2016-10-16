@@ -29,7 +29,7 @@ class TestCLI(unittest.TestCase):
                 args[0] += ".bat"
 
         process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        output = process.communicate()[0].decode("UTF-8")
+        output = process.communicate()[0]
 
         if process.returncode != 0:
             raise AssertionError("Error running command '{}': code {}, output:\n{}".format(
@@ -39,6 +39,8 @@ class TestCLI(unittest.TestCase):
             actual_output_lines = output.splitlines()
 
             for expected_output_line in expected_output_lines:
+                expected_output_line = expected_output_line.encode("UTF-8")
+
                 if not any(expected_output_line in actual_output_line for actual_output_line in actual_output_lines):
                     raise AssertionError("Expected to see '{}' in output of command '{}', got output:\n{}".format(
                         expected_output_line, " ".join(args), output))
