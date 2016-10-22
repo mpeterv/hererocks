@@ -319,6 +319,13 @@ def remove_read_only_or_reraise(func, path, exc_info):
 def remove_dir(path):
     shutil.rmtree(path, onerror=remove_read_only_or_reraise)
 
+def find_in_dir(filename, root):
+    for directory, _, files in os.walk(root):
+        for f in files:
+            if f == filename:
+                return os.path.join(directory, f)
+    raise Exception("Unable to find %s in %s" % (filename, root))
+
 clever_http_git_whitelist = [
     "http://github.com/", "https://github.com/",
     "http://bitbucket.com/", "https://bitbucket.com/"
@@ -563,6 +570,22 @@ class Program(object):
             self.identifiers["repo"] = self.repo
             self.identifiers["commit"] = self.commit
 
+        self.identifiers["target"] = opts.target
+
+        if using_cl():
+            cl_help = get_output("cl")
+            cl_version = re.search(r"(1[56789])\.\d+", cl_help)
+            cl_arch = re.search(r"(x(?:86)|(?:64))", cl_help)
+
+            if not cl_version or not cl_arch:
+                sys.exit("Error: couldn't determine cl.exe version and architecture")
+
+            cl_version = cl_version.group(1)
+            cl_arch = cl_arch.group(1)
+
+            self.identifiers["vs year"] = cl_version_to_vs_year[cl_version]
+            self.identifiers["vs arch"] = cl_arch
+
     def update_identifiers(self, all_identifiers):
         self.all_identifiers = all_identifiers
         installed_identifiers = all_identifiers.get(self.name)
@@ -577,6 +600,18 @@ class Program(object):
         self.install()
         all_identifiers[self.name] = self.identifiers
         return True
+
+    @staticmethod
+    def get_cmake_generator(lua_identifiers):
+        lua_target = lua_identifiers["target"]
+        if lua_target == "mingw":
+            return "MinGW Makefiles"
+        elif lua_target.startswith("vs"):
+            vs_year = lua_identifiers["vs year"]
+            vs_arch = lua_identifiers["vs arch"]
+            vs_short_version = vs_year_to_version[vs_year][:-2]
+            return "Visual Studio {} 20{}{}".format(
+                vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
 class Lua(Program):
     def __init__(self, version):
@@ -599,9 +634,8 @@ class Lua(Program):
         self.add_package_paths_redefines()
         self.add_compat_cflags_and_redefines()
 
-    @staticmethod
-    def major_version_from_source():
-        with open(os.path.join("src", "lua.h")) as lua_h:
+    def major_version_from_source(self):
+        with open(self.lua_h_path()) as lua_h:
             for line in lua_h:
                 match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
 
@@ -613,25 +647,10 @@ class Lua(Program):
     def set_identifiers(self):
         super(Lua, self).set_identifiers()
 
-        self.identifiers["target"] = opts.target
         self.identifiers["compat"] = self.compat
         self.identifiers["c flags"] = opts.cflags or ""
         self.identifiers["location"] = opts.location
         self.identifiers["major version"] = self.major_version
-
-        if using_cl():
-            cl_help = get_output("cl")
-            cl_version = re.search(r"(1[56789])\.\d+", cl_help)
-            cl_arch = re.search(r"(x(?:86)|(?:64))", cl_help)
-
-            if not cl_version or not cl_arch:
-                sys.exit("Error: couldn't determine cl.exe version and architecture")
-
-            cl_version = cl_version.group(1)
-            cl_arch = cl_arch.group(1)
-
-            self.identifiers["vs year"] = cl_version_to_vs_year[cl_version]
-            self.identifiers["vs arch"] = cl_arch
 
     def add_options_to_version_suffix(self):
         options = []
@@ -683,15 +702,21 @@ class Lua(Program):
             "#define LUA_CPATH_DEFAULT \"{}\"".format(package_cpath)
         ])
 
+    def luaconf_h_path(self):
+        return os.path.join("src", "luaconf.h")
+
+    def lua_h_path(self):
+        return os.path.join("src", "lua.h")
+
     def patch_redefines(self):
         redefines = "\n".join(self.redefines)
 
-        with open(os.path.join("src", "luaconf.h"), "rb") as luaconf_h:
+        with open(self.luaconf_h_path(), "rb") as luaconf_h:
             luaconf_src = luaconf_h.read()
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
 
-        with open(os.path.join("src", "luaconf.h"), "wb") as luaconf_h:
+        with open(self.luaconf_h_path(), "wb") as luaconf_h:
             luaconf_h.write(body)
             luaconf_h.write(redefines.encode("UTF-8"))
             luaconf_h.write(b"\n#endif")
@@ -1391,6 +1416,117 @@ class LuaJIT(Lua):
 
         copy_dir("jit", jitlib_path)
 
+class Ravi(Lua):
+    name = "ravi"
+    title = "Ravi"
+    downloads = "https://github.com/dibyendumajumdar/ravi/archive"
+    win32_zip = False
+    default_repo = "https://github.com/dibyendumajumdar/ravi"
+    versions = [
+        "0.15.1",
+    ]
+    translations = {
+        "0": "0.15.1",
+        "0.15": "0.15.1",
+        "^": "0.15.1",
+        "latest": "0.15.1"
+    }
+    checksums = {
+        "ravi-0.15.1.tar.gz"   : "c42b4540a37f763904895f7fb5757f0ce0e5185e7c3e5316eb056a1ac505134d",
+    }
+
+    def get_download_url(self):
+        return self.downloads + "/" + self.fixed_version + ".tar.gz"
+
+    def luaconf_h_path(self):
+        return os.path.join("include", "luaconf.h")
+
+    def lua_h_path(self):
+        return os.path.join("include", "lua.h")
+
+    @staticmethod
+    def major_version_from_version():
+        return "5.3"
+
+    @staticmethod
+    def set_version_suffix():
+        pass
+
+    def set_compat(self):
+        self.compat = "default"
+
+    def add_compat_cflags_and_redefines(self):
+        pass
+
+    def make(self):
+        cmake_generator = self.get_cmake_generator(self.identifiers)
+        os.mkdir("build")
+        os.chdir("build")
+        args = ["-DCMAKE_BUILD_TYPE=Release", ".."]
+        if cmake_generator is not None:
+            args = ["-G", cmake_generator] + args
+        run("cmake", *args)
+        run("cmake", "--build", ".", "--config", "Release")
+        os.chdir("..")
+
+    def make_install(self):
+        for d in ["bin", "lib", "include"]:
+            path = os.path.join(opts.location, d)
+            if not os.path.exists(path):
+                os.mkdir(path)
+
+        shutil.copy(
+            find_in_dir(exe("ravi"), "build"),
+            os.path.join(opts.location, "bin", exe("ravi")),
+        )
+
+        if os.name == "nt":
+            shutil.copy(
+                find_in_dir("libravi.dll", "build"),
+                os.path.join(opts.location, "bin", "libravi.dll"),
+            )
+            arch_ext = "lib" if using_cl() else "dll.a"
+            arch_file = "libravi." + arch_ext
+            shutil.copy(
+                find_in_dir(arch_file, "build"),
+                os.path.join(opts.location, "lib", arch_file),
+            )
+            # copy binary to "lua.exe"
+            shutil.copy(
+                os.path.join(opts.location, "bin", exe("ravi")),
+                os.path.join(opts.location, "bin", exe("lua")),
+            )
+        else:
+            dll_ext = "dylib" if opts.target == "macosx" else "so"
+            dll_file = "libravi." + dll_ext
+            shutil.copy(
+                find_in_dir(dll_file, "build"),
+                os.path.join(opts.location, "lib", dll_file),
+            )
+            # create shell wrapper
+            lua_file = os.path.join(opts.location, "bin", exe("lua"))
+            with open(lua_file, "w") as lua_exe:
+                lua_exe.write(
+                    '''#!/bin/sh
+export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="{lib_dir}:$DYLD_LIBRARY_PATH"
+exec "{exe}" "$@"'''.format(
+                        lib_dir=os.path.join(opts.location, "lib"),
+                        exe=os.path.join(opts.location, "bin", exe("ravi")))
+                )
+            # chmod +x
+            st = os.stat(lua_file)
+            os.chmod(
+                lua_file,
+                st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH,
+            )
+
+        for header in os.listdir("include"):
+            shutil.copy(
+                os.path.join("include", header),
+                os.path.join(opts.location, "include", header),
+            )
+
 class LuaRocks(Program):
     name = "luarocks"
     title = "LuaRocks"
@@ -1457,21 +1593,9 @@ class LuaRocks(Program):
 
         return False
 
-    @staticmethod
-    def get_cmake_generator(lua_identifiers):
-        lua_target = lua_identifiers["target"]
-
-        if lua_target == "mingw":
-            return "MinGW Makefiles"
-        elif lua_target.startswith("vs"):
-            vs_year = lua_identifiers["vs year"]
-            vs_arch = lua_identifiers["vs arch"]
-            vs_short_version = vs_year_to_version[vs_year][:-2]
-            return "Visual Studio {} 20{}{}".format(
-                vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
-
     def build(self):
-        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
+        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get(
+            "LuaJIT", self.all_identifiers.get("ravi")))
 
         if lua_identifiers is None:
             sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
@@ -1749,6 +1873,9 @@ def main(argv=None):
         "When installing from the LuaJIT main git repo its URI can be left out, "
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
+        "--ravi", help="Version of Ravi to install. "
+    )
+    parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
         "As with Lua, a version number (in range 2.0.8 - 2.4.0), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
@@ -1814,13 +1941,13 @@ def main(argv=None):
 
     global opts
     opts = parser.parse_args(argv)
-    if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show:
+    if not opts.lua and not opts.luajit and not opts.ravi and not opts.luarocks and not opts.show:
         parser.error("nothing to do")
 
-    if opts.lua and opts.luajit:
-        parser.error("can't install both PUC-Rio Lua and LuaJIT")
+    if len([impl for impl in (opts.lua, opts.luajit, opts.ravi) if impl]) > 1:
+        parser.error("can't install several Lua implementations")
 
-    if (opts.lua or opts.luajit or opts.luarocks) and opts.show:
+    if (opts.lua or opts.luajit or opts.ravi or opts.luarocks) and opts.show:
         parser.error("can't both install and show")
 
     if opts.show:
@@ -1830,7 +1957,7 @@ def main(argv=None):
             if all_identifiers:
                 print("Programs installed in {}:".format(opts.location))
 
-                for program in [RioLua, LuaJIT, LuaRocks]:
+                for program in [RioLua, LuaJIT, Ravi, LuaRocks]:
                     if program.name in all_identifiers:
                         show_identifiers(all_identifiers[program.name])
             else:
@@ -1843,7 +1970,7 @@ def main(argv=None):
     global temp_dir
     temp_dir = tempfile.mkdtemp()
 
-    if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
+    if (opts.lua or opts.luajit or opts.ravi) and os.name == "nt" and argv is None and using_cl():
         setup_vs(opts.target)
 
     start_dir = os.getcwd()
@@ -1865,6 +1992,8 @@ def main(argv=None):
     if opts.lua:
         if "LuaJIT" in identifiers:
             del identifiers["LuaJIT"]
+        if "Ravi" in identifiers:
+            del identifiers["Ravi"]
 
         if RioLua(opts.lua).update_identifiers(identifiers):
             save_installed_identifiers(identifiers)
@@ -1874,8 +2003,21 @@ def main(argv=None):
     if opts.luajit:
         if "lua" in identifiers:
             del identifiers["lua"]
+        if "Ravi" in identifiers:
+            del identifiers["Ravi"]
 
         if LuaJIT(opts.luajit).update_identifiers(identifiers):
+            save_installed_identifiers(identifiers)
+
+        os.chdir(start_dir)
+
+    if opts.ravi:
+        if "lua" in identifiers:
+            del identifiers["lua"]
+        if "LuaJIT" in identifiers:
+            del identifiers["LuaJIT"]
+
+        if Ravi(opts.ravi).update_identifiers(identifiers):
             save_installed_identifiers(identifiers)
 
         os.chdir(start_dir)
