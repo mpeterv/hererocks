@@ -12,7 +12,6 @@ matrix:
       language: generic
 
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install python; fi
   - pip install pyflakes pep8 coverage coveralls nose
 
 script:
