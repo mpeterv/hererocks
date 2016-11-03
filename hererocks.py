@@ -1394,9 +1394,9 @@ class LuaJIT(Lua):
 class LuaRocks(Program):
     name = "luarocks"
     title = "LuaRocks"
-    downloads = "http://keplerproject.github.io/luarocks/releases"
+    downloads = "http://luarocks.github.io/luarocks/releases"
     win32_zip = os.name == "nt"
-    default_repo = "https://github.com/keplerproject/luarocks"
+    default_repo = "https://github.com/luarocks/luarocks"
     versions = [
         "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12", "2.0.13",
         "2.1.0", "2.1.1", "2.1.2",
