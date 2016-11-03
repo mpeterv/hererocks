@@ -84,7 +84,7 @@ Version selection
 ``--lua/-l``, ``--luajit/-j`` and ``--luarocks/-r`` options select versions of programs to install. There are three ways to specify how to fetch the sources:
 
 * Using version number, such as ``5.1.5``. If patch or minor versions are left out the latest possible version will be used, e.g. for Lua ``5.2`` is currently equivalent to ``5.2.4`` and for LuaJIT ``2.1`` is same as ``2.1.0-beta2``. ``latest`` or ``^`` can be used to select the latest stable version. ``hererocks`` will fetch and unpack sources of the selected version from corresponding downloads location, verifying their SHA256 checksum.
-* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for Lua (https://github.com/lua/lua), LuaJIT (https://github.com/luajit/luajit) and LuaRocks (https://github.com/keplerproject/luarocks). For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
+* Using git URI plus reference to checkout, separated by ``@``. Default reference is ``master``, and there are default git URIs for Lua (https://github.com/lua/lua), LuaJIT (https://github.com/luajit/luajit) and LuaRocks (https://github.com/luarocks/luarocks). For instance, ``--luajit @458a40b`` installs from a commit at the LuaJIT git repository and ``--luajit @`` installs from its master branch. ``hererocks`` will use ``git`` command for cloning.
 * Using path to a local directory.
 
 Compatibility flags
@@ -109,7 +109,7 @@ Available versions: 2.0.0 - 2.0.4, 2.1.0-beta1 - 2.1.0-beta2.
 Installing LuaRocks
 ^^^^^^^^^^^^^^^^^^^
 
-Available versions: 2.0.8 - 2.0.13, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 2.4.0, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
+Available versions: 2.0.8 - 2.0.13, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 2.4.0 - 2.4.1, 3 (installs from ``luarocks-3`` branch of the LuaRocks git repository).
 
 Version 2.0.8 does not support Lua 5.2. Versions 2.0.8 - 2.1.2 do not support Lua 5.3.
 
