@@ -1488,7 +1488,7 @@ class LuaRocks(Program):
                 "install.bat",
                 "/P", os.path.join(opts.location, "luarocks"),
                 "/LUA", opts.location,
-                "/FORCECONFIG", "/F"
+                "/F"
             ]
             if lua_identifiers["target"] == "mingw":
                 args += ["/MW"]
@@ -1525,7 +1525,7 @@ class LuaRocks(Program):
         else:
             print("Building LuaRocks" + self.version_suffix)
             run("./configure", "--prefix=" + opts.location,
-                "--with-lua=" + opts.location, "--force-config")
+                "--with-lua=" + opts.location)
 
             if self.is_luarocks_2_0():
                 run("make")
