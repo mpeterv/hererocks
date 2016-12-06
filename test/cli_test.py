@@ -76,6 +76,7 @@ class TestCLI(unittest.TestCase):
         self.assertSuccess(["hererocks-test"], ["LuaJIT 2.1.0"])
 
         self.assertHererocksSuccess(["--luajit", "@v2.1", "--luarocks", "latest"], ["already installed"])
+        self.assertHererocksSuccess(["--show"], ["cloned from https://github.com/LuaJIT/LuaJIT"])
 
     def test_install_lua_5_1_without_compat_without_readline_with_old_luarocks(self):
         self.assertHererocksSuccess(["--lua", "5.1", "--compat", "none", "--no-readline", "--luarocks", "2.0.8"])
@@ -112,7 +113,7 @@ class TestCLI(unittest.TestCase):
             ["--lua", "5.2", "--ignore-installed", "--compat", "none", "--builds", os.path.join("test", "builds")],
             ["compat: none) (cached)"])
 
-    def test_install_lua_from_given_git_repo_with_luarocks_from_local_sources(self):
+    def test_install_lua_5_2_with_luarocks_from_local_sources(self):
         local_luarocks = os.path.join("test", "luarocks")
 
         if not os.path.exists(local_luarocks):
@@ -120,10 +121,8 @@ class TestCLI(unittest.TestCase):
                 "git", "clone", "https://github.com/keplerproject/luarocks",
                 "--depth=1", local_luarocks], from_prefix=False)
 
-        self.assertHererocksSuccess(["--lua", "https://github.com/lua/lua@5.1.3-rc3", "--luarocks", local_luarocks])
-        self.assertSuccess(["lua", "-v"], ["Lua 5.1.3"])
-        self.assertHererocksSuccess(["--show"], [
-            "Lua 5.1", "cloned from https://github.com/lua/lua", "from local sources"])
+        self.assertHererocksSuccess(["--lua", "5.2", "--luarocks", local_luarocks])
+        self.assertHererocksSuccess(["--show"], ["from local sources"])
 
     def test_activate_scripts(self):
         self.assertHererocksSuccess(["--lua", "5.1"], location=os.path.join("here", "bad (dir) 1"))
