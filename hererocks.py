@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import argparse
 import hashlib
+import inspect
 import json
 import os
 import platform
@@ -1645,7 +1646,7 @@ def setup_vs_and_rerun(vs_version, arch):
     argv_name = os.path.join(temp_dir, "argv")
     setup_output_name = os.path.join(temp_dir, "setup_out")
 
-    script_arg = '"{}"'.format(sys.argv[0])
+    script_arg = '"{}"'.format(inspect.getsourcefile(main))
 
     if sys.executable:
         script_arg = '"{}" {}'.format(sys.executable, script_arg)
