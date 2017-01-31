@@ -53,7 +53,7 @@ class TestCLI(unittest.TestCase):
     def test_install_latest_lua_with_latest_luarocks(self):
         self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "latest"])
         self.assertHererocksSuccess(["--show"], ["Programs installed in", "Compat: default"])
-        self.assertSuccess(["lua", "-v"], ["Lua 5.3.3"])
+        self.assertSuccess(["lua", "-v"], ["Lua 5.3.4"])
         self.assertSuccess(["lua", "-e", "assert(bit32)"])
 
         self.assertSuccess(["luarocks", "--version"])
