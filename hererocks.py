@@ -195,6 +195,7 @@ platform_to_lua_target = {
 def using_cl():
     return opts.target.startswith("vs")
 
+
 def get_default_lua_target():
     for plat, lua_target in platform_to_lua_target.items():
         if sys.platform.startswith(plat):
@@ -1463,30 +1464,45 @@ class LuaRocks(Program):
 
         return False
 
-    @staticmethod
-    def get_cmake_generator(lua_identifiers):
-        lua_target = lua_identifiers["target"]
+    def get_cmake_generator(self):
+        lua_target = self.lua_identifiers["target"]
 
         if lua_target == "mingw":
             return "MinGW Makefiles"
         elif lua_target.startswith("vs"):
-            vs_year = lua_identifiers["vs year"]
-            vs_arch = lua_identifiers["vs arch"]
+            vs_year = self.lua_identifiers["vs year"]
+            vs_arch = self.lua_identifiers["vs arch"]
             vs_short_version = vs_year_to_version[vs_year][:-2]
             return "Visual Studio {} 20{}{}".format(
                 vs_short_version, vs_year, " Win64" if vs_arch == "x64" else "")
 
-    def build(self):
-        lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
+    @staticmethod
+    def get_default_cflags():
+        if using_cl():
+            return "/nologo /MD /O2"
+        elif opts.target == "mingw":
+            return "-O2"
+        else:
+            return "-O2 -fPIC"
 
-        if lua_identifiers is None:
+    def get_config_path(self):
+        if os.name == "nt":
+            return os.path.join(
+                opts.location, "luarocks", "config-{}.lua".format(self.lua_identifiers["major version"]))
+        else:
+            return os.path.join(
+                opts.location, "etc", "luarocks", "config-{}.lua".format(self.lua_identifiers["major version"]))
+
+    def build(self):
+        self.lua_identifiers = self.all_identifiers.get("lua", self.all_identifiers.get("LuaJIT"))
+
+        if self.lua_identifiers is None:
             sys.exit("Error: can't install LuaRocks: Lua is not present in {}".format(opts.location))
 
         self.fetch()
 
         if os.name == "nt":
             print("Building and installing LuaRocks" + self.version_suffix)
-
             help_text = get_output("install.bat", "/?")
             args = [
                 "install.bat",
@@ -1494,11 +1510,11 @@ class LuaRocks(Program):
                 "/LUA", opts.location,
                 "/F"
             ]
-            if lua_identifiers["target"] == "mingw":
+            if self.lua_identifiers["target"] == "mingw":
                 args += ["/MW"]
             # Since LuaRocks 2.0.13
             if "/LV" in help_text:
-                args += ["/LV", lua_identifiers["major version"]]
+                args += ["/LV", self.lua_identifiers["major version"]]
             # Since LuaRocks 2.1.2
             if "/NOREG" in help_text:
                 args += ["/NOREG", "/Q"]
@@ -1517,14 +1533,11 @@ class LuaRocks(Program):
                 else:
                     sys.exit("Error: can't find {} in {}".format(script, os.path.join(opts.location, "luarocks")))
 
-            cmake_generator = self.get_cmake_generator(lua_identifiers)
+            cmake_generator = self.get_cmake_generator()
 
             if cmake_generator is not None:
-                config_path = os.path.join(
-                    opts.location, "luarocks", "config-{}.lua".format(lua_identifiers["major version"]))
-
-                with open(config_path, "ab") as config_h:
-                    config_h.write('\r\ncmake_generator = "{}"\r\n'.format(cmake_generator).encode("UTF-8"))
+                with open(self.get_config_path(), "a") as config_h:
+                    config_h.write('\ncmake_generator = "{}"\n'.format(cmake_generator))
 
         else:
             print("Building LuaRocks" + self.version_suffix)
@@ -1540,6 +1553,10 @@ class LuaRocks(Program):
         if os.name != "nt":
             print("Installing LuaRocks" + self.version_suffix)
             run("make", "install")
+
+        if self.lua_identifiers["c flags"] != "":
+            with open(self.get_config_path(), "a") as config_h:
+                config_h.write('\nvariables = {{CFLAGS = "{} {}"}}\n'.format(self.get_default_cflags(), self.lua_identifiers["c flags"]))
 
 def get_manifest_name():
     return os.path.join(opts.location, "hererocks.manifest")
