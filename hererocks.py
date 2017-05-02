@@ -226,7 +226,7 @@ def get_default_cache():
             return os.path.join(home, ".cache", "hererocks")
 
 def download(url, filename):
-    response = urlopen(url)
+    response = urlopen(url, timeout=opts.timeout)
     data = response.read()
 
     with open(filename, "wb") as out:
@@ -527,7 +527,7 @@ class Program(object):
             print("Fetching {} (cached)".format(self.title))
         else:
             for base_url in self.downloads:
-                url = self.get_download_url()
+                url = self.get_download_url(base_url)
                 print("Fetching {} from {}".format(self.title, url))
 
                 try:
@@ -1821,6 +1821,9 @@ def main(argv=None):
         default=get_default_lua_target())
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
+    parser.add_argument("--timeout",
+                        help="Download timeout in seconds.",
+                        type=int, default=60)
     parser.add_argument("--downloads",
                         help="Cache downloads and default git repos in 'DOWNLOADS' directory.",
                         default=get_default_cache())
