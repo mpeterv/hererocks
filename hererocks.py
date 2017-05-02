@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import inspect
 import json
+import locale
 import os
 import platform
 import re
@@ -232,6 +233,8 @@ def download(url, filename):
     with open(filename, "wb") as out:
         out.write(data)
 
+default_encoding = locale.getpreferredencoding()
+
 def run(*args, **kwargs):
     """Execute a command.
 
@@ -260,7 +263,7 @@ def run(*args, **kwargs):
             return ""
 
         if not live_output:
-            sys.stdout.write(exception.output.decode("UTF-8"))
+            sys.stdout.write(exception.output.decode(default_encoding, "ignore"))
 
         sys.exit("Error: got exitcode {} from command {}".format(
             exception.returncode, " ".join(args)))
@@ -268,9 +271,9 @@ def run(*args, **kwargs):
         sys.exit("Error: couldn't run {}: is {} in PATH?".format(" ".join(args), args[0]))
 
     if opts.verbose and capture:
-        sys.stdout.write(output.decode("UTF-8"))
+        sys.stdout.write(output.decode(default_encoding, "ignore"))
 
-    return capture and output.decode("UTF-8").strip()
+    return capture and output.decode(default_encoding, "ignore").strip()
 
 def get_output(*args):
     return run(get_output=True, *args)
