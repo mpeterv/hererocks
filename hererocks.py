@@ -22,9 +22,10 @@ import textwrap
 import zipfile
 
 try:
-    from urllib2 import urlopen
+    from urllib2 import urlopen, URLError
 except ImportError:
     from urllib.request import urlopen
+    from urllib.error import URLError
 
 if os.name == "nt":
     try:
@@ -500,8 +501,8 @@ class Program(object):
     def get_file_name(self):
         return self.get_download_name() + (".zip" if self.win32_zip else ".tar.gz")
 
-    def get_download_url(self):
-        return self.downloads + "/" + self.get_file_name()
+    def get_download_url(self, base_url):
+        return base_url + "/" + self.get_file_name()
 
     def fetch(self):
         if self.fetched:
@@ -522,14 +523,21 @@ class Program(object):
 
             archive_name = os.path.join(opts.downloads, self.get_file_name())
 
-        url = self.get_download_url()
-        message = "Fetching {} from {}".format(self.title, url)
-
-        if not opts.downloads or not os.path.exists(archive_name):
-            print(message)
-            download(url, archive_name)
+        if opts.downloads and os.path.exists(archive_name):
+            print("Fetching {} (cached)".format(self.title))
         else:
-            print(message + " (cached)")
+            for base_url in self.downloads:
+                url = self.get_download_url()
+                print("Fetching {} from {}".format(self.title, url))
+
+                try:
+                    download(url, archive_name)
+                except URLError as error:
+                    print("Download failed: {}".format(str(error.reason)))
+                else:
+                    break
+            else:
+                sys.exit(1)
 
         print("Verifying SHA256 checksum")
         expected_checksum = self.checksums[self.get_file_name()]
@@ -842,7 +850,7 @@ class Patch(object):
 class RioLua(Lua):
     name = "lua"
     title = "Lua"
-    downloads = "http://www.lua.org/ftp"
+    downloads = ["http://www.lua.org/ftp", "http://webserver2.tecgraf.puc-rio.br/lua/mirror/ftp"]
     win32_zip = False
     default_repo = "https://github.com/lua/lua"
     versions = [
@@ -1270,7 +1278,7 @@ class RioLua(Lua):
 class LuaJIT(Lua):
     name = "LuaJIT"
     title = "LuaJIT"
-    downloads = "https://github.com/LuaJIT/LuaJIT/archive"
+    downloads = ["https://github.com/LuaJIT/LuaJIT/archive"]
     win32_zip = False
     default_repo = "https://github.com/LuaJIT/LuaJIT"
     versions = [
@@ -1303,8 +1311,8 @@ class LuaJIT(Lua):
             # v2.0.1 tag is broken, use v2.0.1-fixed.
             self.fixed_version = "2.0.1-fixed"
 
-    def get_download_url(self):
-        return self.downloads + "/v" + self.fixed_version + ".tar.gz"
+    def get_download_url(self, base_url):
+        return base_url + "/v" + self.fixed_version + ".tar.gz"
 
     @staticmethod
     def major_version_from_version():
@@ -1399,7 +1407,7 @@ class LuaJIT(Lua):
 class LuaRocks(Program):
     name = "luarocks"
     title = "LuaRocks"
-    downloads = "http://luarocks.github.io/luarocks/releases"
+    downloads = ["http://luarocks.github.io/luarocks/releases"]
     win32_zip = os.name == "nt"
     default_repo = "https://github.com/luarocks/luarocks"
     versions = [
