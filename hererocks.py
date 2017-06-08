@@ -527,11 +527,11 @@ class Program(object):
             archive_name = os.path.join(opts.downloads, self.get_file_name())
 
         if opts.downloads and os.path.exists(archive_name):
-            print("Fetching {} (cached)".format(self.title))
+            print("Fetching {}{} (cached)".format(self.title, self.version_suffix))
         else:
             for base_url in self.downloads:
                 url = self.get_download_url(base_url)
-                print("Fetching {} from {}".format(self.title, url))
+                print("Fetching {}{} from {}".format(self.title, self.version_suffix, url))
 
                 try:
                     download(url, archive_name)
