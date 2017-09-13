@@ -1306,7 +1306,7 @@ class RioLua(Lua):
                 run("ar", "rcu", self.arch_file, lib_objs)
                 run("ranlib", self.arch_file)
 
-            built_luac_objs = [obj for obj in luac_objs if obj in objs]
+            built_luac_objs = [obj_ for obj_ in luac_objs if obj_ in objs]
 
             # Handle the case when there are no source files for `luac`, likely because installing
             # from a git repo that does not have them, like the default one.
