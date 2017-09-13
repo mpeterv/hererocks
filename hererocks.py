@@ -5,6 +5,7 @@
 from __future__ import print_function
 
 import argparse
+import contextlib
 import hashlib
 import inspect
 import json
@@ -595,6 +596,8 @@ class Lua(Program):
     def __init__(self, version):
         super(Lua, self).__init__(version)
 
+        self.source_files_prefix = self.get_source_files_prefix()
+
         if self.source == "release":
             self.major_version = self.major_version_from_version()
         else:
@@ -613,8 +616,28 @@ class Lua(Program):
         self.add_compat_cflags_and_redefines()
 
     @staticmethod
-    def major_version_from_source():
-        with open(os.path.join("src", "lua.h")) as lua_h:
+    def get_source_files_prefix():
+        return "src"
+
+    def get_source_file_path(self, file_name):
+        if self.source_files_prefix is None:
+            return file_name
+        else:
+            return os.path.join(self.source_files_prefix, file_name)
+
+    @contextlib.contextmanager
+    def in_source_files_prefix(self):
+        if self.source_files_prefix is not None:
+            start_dir = os.getcwd()
+            os.chdir(self.source_files_prefix)
+
+        yield
+
+        if self.source_files_prefix is not None:
+            os.chdir(start_dir)
+
+    def major_version_from_source(self):
+        with open(self.get_source_file_path("lua.h")) as lua_h:
             for line in lua_h:
                 match = re.match(r"^\s*#define\s+LUA_VERSION_NUM\s+50(\d)\s*$", line)
 
@@ -697,14 +720,15 @@ class Lua(Program):
         ])
 
     def patch_redefines(self):
+        luaconf_path = self.get_source_file_path("luaconf.h")
         redefines = "\n".join(self.redefines)
 
-        with open(os.path.join("src", "luaconf.h"), "rb") as luaconf_h:
+        with open(luaconf_path, "rb") as luaconf_h:
             luaconf_src = luaconf_h.read()
 
         body, _, tail = luaconf_src.rpartition(b"#endif")
 
-        with open(os.path.join("src", "luaconf.h"), "wb") as luaconf_h:
+        with open(luaconf_path, "wb") as luaconf_h:
             luaconf_h.write(body)
             luaconf_h.write(redefines.encode("UTF-8"))
             luaconf_h.write(b"\n#endif")
@@ -1099,6 +1123,13 @@ class RioLua(Lua):
         else:
             self.dll_file = None
 
+    def get_source_files_prefix(self):
+        # When installing PUC-Rio Lua from a git repo or local sources,
+        # use directory structure of its GitHub mirror, where
+        # source files are direcly in project root instead of `src`.
+        if self.source == "release":
+            return "src"
+
     def set_identifiers(self):
         super(RioLua, self).set_identifiers()
 
@@ -1254,71 +1285,80 @@ class RioLua(Lua):
         elif using_cl():
             cflags.insert(0, "-DLUA_BUILD_AS_DLL")
 
-        os.chdir("src")
-        self.handle_patches()
-        objs = []
-        luac_objs = ["luac" + objext(), "print" + objext()]
+        with self.in_source_files_prefix():
+            self.handle_patches()
+            objs = []
+            luac_objs = ["luac" + objext(), "print" + objext()]
 
-        for src in sorted(os.listdir(".")):
-            base, ext = os.path.splitext(src)
+            for src in sorted(os.listdir(".")):
+                base, ext = os.path.splitext(src)
 
-            if ext == ".c":
-                obj = base + objext()
-                objs.append(obj)
+                if ext == ".c":
+                    obj = base + objext()
+                    objs.append(obj)
 
-                cmd_suffix = src if using_cl() else ["-c", "-o", obj, src]
-                run(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
+                    cmd_suffix = src if using_cl() else ["-c", "-o", obj, src]
+                    run(cc, static_cflags if obj in luac_objs else cflags, cmd_suffix)
 
-        lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and (obj_ != "lua" + objext())]
-        luac_objs = ["luac" + objext()]
+            lib_objs = [obj_ for obj_ in objs if obj_ not in luac_objs and (obj_ != "lua" + objext())]
 
-        if "print" + objext() in objs:
-            luac_objs.append("print" + objext())
+            if not using_cl():
+                run("ar", "rcu", self.arch_file, lib_objs)
+                run("ranlib", self.arch_file)
 
-        if using_cl():
-            run("link", "/nologo", "/out:luac.exe", luac_objs, lib_objs)
+            built_luac_objs = [obj for obj in luac_objs if obj in objs]
 
-            if os.path.exists("luac.exe.manifest"):
-                run("mt", "/nologo", "-manifest", "luac.exe.manifest", "-outputresource:luac.exe")
-        else:
-            run("ar", "rcu", self.arch_file, lib_objs)
-            run("ranlib", self.arch_file)
-            run(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
+            # Handle the case when there are no source files for `luac`, likely because installing
+            # from a git repo that does not have them, like the default one.
+            if len(built_luac_objs) > 0:
+                if using_cl():
+                    run("link", "/nologo", "/out:luac.exe", built_luac_objs, lib_objs)
 
-        if opts.target == "mingw":
-            run(cc, "-shared", "-o", self.dll_file, lib_objs)
-            run("strip", "--strip-unneeded", self.dll_file)
-            run(cc, "-o", self.lua_file, "-s", "lua.o", self.dll_file)
-        elif using_cl():
-            run("link", "/nologo", "/DLL", "/out:" + self.dll_file, lib_objs)
+                    if os.path.exists("luac.exe.manifest"):
+                        run("mt", "/nologo", "-manifest", "luac.exe.manifest", "-outputresource:luac.exe")
+                else:
+                    run(cc, "-o", self.luac_file, built_luac_objs, self.arch_file, lflags)
 
-            if os.path.exists(self.dll_file + ".manifest"):
-                run("mt", "/nologo", "-manifest", self.dll_file + ".manifest",
-                    "-outputresource:" + self.dll_file)
+            if opts.target == "mingw":
+                run(cc, "-shared", "-o", self.dll_file, lib_objs)
+                run("strip", "--strip-unneeded", self.dll_file)
+                run(cc, "-o", self.lua_file, "-s", "lua.o", self.dll_file)
+            elif using_cl():
+                run("link", "/nologo", "/DLL", "/out:" + self.dll_file, lib_objs)
 
-            run("link", "/nologo", "/out:lua.exe", "lua.obj", self.arch_file)
+                if os.path.exists(self.dll_file + ".manifest"):
+                    run("mt", "/nologo", "-manifest", self.dll_file + ".manifest",
+                        "-outputresource:" + self.dll_file)
 
-            if os.path.exists("lua.exe.manifest"):
-                run("mt", "/nologo", "-manifest", "lua.exe.manifest", "-outputresource:lua.exe")
-        else:
-            run(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
+                run("link", "/nologo", "/out:lua.exe", "lua.obj", self.arch_file)
 
-        os.chdir("..")
+                if os.path.exists("lua.exe.manifest"):
+                    run("mt", "/nologo", "-manifest", "lua.exe.manifest", "-outputresource:lua.exe")
+            else:
+                run(cc, "-o", self.lua_file, "lua.o", self.arch_file, lflags)
 
     def make_install(self):
-        os.chdir("src")
-        copy_files(os.path.join(opts.location, "bin"),
-                   self.lua_file, self.luac_file, self.dll_file)
+        with self.in_source_files_prefix():
+            luac = self.luac_file
 
-        lua_hpp = "lua.hpp"
+            if not os.path.exists(luac):
+                luac = None
 
-        if not os.path.exists(lua_hpp):
-            lua_hpp = "../etc/lua.hpp"
+            copy_files(os.path.join(opts.location, "bin"),
+                       self.lua_file, luac, self.dll_file)
 
-        copy_files(os.path.join(opts.location, "include"),
-                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+            lua_hpp = "lua.hpp"
 
-        copy_files(os.path.join(opts.location, "lib"), self.arch_file)
+            if not os.path.exists(lua_hpp):
+                if self.source_files_prefix is None:
+                    lua_hpp = None
+                else:
+                    lua_hpp = "../etc/lua.hpp"
+
+            copy_files(os.path.join(opts.location, "include"),
+                       "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
+
+            copy_files(os.path.join(opts.location, "lib"), self.arch_file)
 
 class LuaJIT(Lua):
     name = "LuaJIT"
@@ -1394,13 +1434,11 @@ class LuaJIT(Lua):
             cflags.extend(opts.cflags.split())
 
         if using_cl():
-            os.chdir("src")
+            with self.in_source_files_prefix():
+                if cflags:
+                    self.add_cflags_to_msvcbuild(" ".join(cflags))
 
-            if cflags:
-                self.add_cflags_to_msvcbuild(" ".join(cflags))
-
-            run("msvcbuild.bat")
-            os.chdir("..")
+                run("msvcbuild.bat")
         else:
             if opts.target == "mingw" and program_exists("mingw32-make"):
                 make = "mingw32-make"
@@ -1426,28 +1464,28 @@ class LuaJIT(Lua):
             target_arch_file = "lua51.lib"
             dll_file = "lua51.dll"
 
-        os.chdir("src")
-        copy_files(os.path.join(opts.location, "bin"), dll_file)
-        shutil.copy(luajit_file, os.path.join(opts.location, "bin", lua_file))
+        with self.in_source_files_prefix():
+            copy_files(os.path.join(opts.location, "bin"), dll_file)
+            shutil.copy(luajit_file, os.path.join(opts.location, "bin", lua_file))
 
-        copy_files(os.path.join(opts.location, "include"),
-                   "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp", "luajit.h")
+            copy_files(os.path.join(opts.location, "include"),
+                       "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", "lua.hpp", "luajit.h")
 
-        copy_files(os.path.join(opts.location, "lib"))
+            copy_files(os.path.join(opts.location, "lib"))
 
-        if opts.target != "mingw":
-            shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
+            if opts.target != "mingw":
+                shutil.copy(arch_file, os.path.join(opts.location, "lib", target_arch_file))
 
-        if os.name != "nt":
-            shutil.copy(so_file, os.path.join(opts.location, "lib", target_so_file))
+            if os.name != "nt":
+                shutil.copy(so_file, os.path.join(opts.location, "lib", target_so_file))
 
-        jitlib_path = os.path.join(
-            opts.location, "share", "lua", self.major_version, "jit")
+            jitlib_path = os.path.join(
+                opts.location, "share", "lua", self.major_version, "jit")
 
-        if os.path.exists(jitlib_path):
-            remove_dir(jitlib_path)
+            if os.path.exists(jitlib_path):
+                remove_dir(jitlib_path)
 
-        copy_dir("jit", jitlib_path)
+            copy_dir("jit", jitlib_path)
 
 class LuaRocks(Program):
     name = "luarocks"
