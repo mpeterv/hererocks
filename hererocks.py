@@ -1019,6 +1019,43 @@ class RioLua(Lua):
                freeexps(fs, e1, e2);
                e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);  /* generate opcode */
                e1->k = VRELOCABLE;  /* all those operations are relocatable */
+        """,
+        "Wrong code generated for a 'goto' followed by a label inside an 'if'": """
+            lparser.c:
+            @@ -1392,7 +1392,7 @@
+                 luaK_goiffalse(ls->fs, &v);  /* will jump to label if condition is true */
+                 enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
+                 gotostat(ls, v.t);  /* handle goto/break */
+            -    skipnoopstat(ls);  /* skip other no-op statements */
+            +    while (testnext(ls, ';')) {}  /* skip semicolons */
+                 if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
+                   leaveblock(fs);
+                   return;  /* and that is it */
+        """,
+        "Lua does not check GC when creating error messages": """
+            ldebug.c:
+            @@ -653,6 +653,7 @@
+               CallInfo *ci = L->ci;
+               const char *msg;
+               va_list argp;
+            +  luaC_checkGC(L);  /* error message uses memory */
+               va_start(argp, fmt);
+               msg = luaO_pushvfstring(L, fmt, argp);  /* format message */
+               va_end(argp);
+        """,
+        "Dead keys with nil values can stay in weak tables": """
+            lgc.c:
+            @@ -643,8 +643,9 @@
+                 for (n = gnode(h, 0); n < limit; n++) {
+                   if (!ttisnil(gval(n)) && (iscleared(g, gkey(n)))) {
+                     setnilvalue(gval(n));  /* remove value ... */
+            -        removeentry(n);  /* and remove entry from table */
+                   }
+            +      if (ttisnil(gval(n)))  /* is entry empty? */
+            +        removeentry(n);  /* remove entry from table */
+                 }
+               }
+             }
         """
     }
     patches_per_version = {
@@ -1037,6 +1074,11 @@ class RioLua(Lua):
                 "Expression list with four or more expressions in a 'for' loop can crash the interpreter",
                 "Checking a format for os.date may read past the format string",
                 "Lua can generate wrong code in functions with too many constants"
+            ],
+            "4": [
+                "Wrong code generated for a 'goto' followed by a label inside an 'if'",
+                "Lua does not check GC when creating error messages",
+                "Dead keys with nil values can stay in weak tables"
             ]
         }
     }
