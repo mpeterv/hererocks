@@ -35,7 +35,7 @@ if os.name == "nt":
     except ImportError:
         import winreg
 
-hererocks_version = "Hererocks 0.16.0"
+hererocks_version = "Hererocks 0.17.0"
 __all__ = ["main"]
 
 opts = None
@@ -1501,7 +1501,7 @@ class LuaRocks(Program):
         "2.4.0", "2.4.1", "2.4.2", "2.4.3",
     ]
     translations = {
-        "2": "2.4.2",
+        "2": "2.4.3",
         "2.0": "2.0.13",
         "2.1": "2.1.2",
         "2.2": "2.2.2",
