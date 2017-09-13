@@ -661,6 +661,9 @@ class Lua(Program):
         if opts.no_readline:
             options.append(("readline", "false"))
 
+        if opts.shared:
+            options.append(("shared", "true"))
+
         if options:
             self.version_suffix += " (" + (", ".join(
                 opt + ": " + value for opt, value in options)) + ")"
@@ -1096,14 +1099,17 @@ class RioLua(Lua):
 
         if opts.target == "mingw" or using_cl():
             self.dll_file = "lua5" + self.major_version[2] + ".dll"
+            self.so_file = None
         else:
             self.dll_file = None
+            self.so_file = "liblua5" + self.major_version[2] + ".so"
 
     def set_identifiers(self):
         super(RioLua, self).set_identifiers()
 
         self.identifiers["readline"] = str(not opts.no_readline).lower()
         self.identifiers["patched"] = str(opts.patch).lower()
+        self.identifiers["shared"] = str(not opts.shared).lower()
 
     def major_version_from_version(self):
         return self.version[:3]
@@ -1245,6 +1251,8 @@ class RioLua(Lua):
             cc = ["cl", "/nologo", "/MD", "/O2", "/W3", "/c", "/D_CRT_SECURE_NO_DEPRECATE"]
         else:
             cflags = ["-O2", "-Wall", "-Wextra"] + cflags
+            if not opts.shared:
+                cflags = ["-fPIC"] + cflags
 
         lflags.append("-lm")
         static_cflags = list(cflags)
@@ -1284,6 +1292,11 @@ class RioLua(Lua):
             run("ar", "rcu", self.arch_file, lib_objs)
             run("ranlib", self.arch_file)
             run(cc, "-o", self.luac_file, luac_objs, self.arch_file, lflags)
+            if not opts.shared:
+                so_lflags = ["-ldl",
+                             "-Wl,--whole-archive,--soname={}".format(self.so_file),
+                             "-Wl,--no-as-needed"] + lflags + [self.arch_file, "-Wl,--no-whole-archive"]
+                run(cc, "-o", self.so_file, "-shared", so_lflags)
 
         if opts.target == "mingw":
             run(cc, "-shared", "-o", self.dll_file, lib_objs)
@@ -1319,6 +1332,8 @@ class RioLua(Lua):
                    "lua.h", "luaconf.h", "lualib.h", "lauxlib.h", lua_hpp)
 
         copy_files(os.path.join(opts.location, "lib"), self.arch_file)
+        if self.so_file and not opts.shared:
+            copy_files(os.path.join(opts.location, "lib"), self.so_file)
 
 class LuaJIT(Lua):
     name = "LuaJIT"
@@ -1866,6 +1881,8 @@ def main(argv=None):
             "vs13_32", "vs13_64", "vs15_32", "vs15_64"
         ], metavar="{linux,macosx,freebsd,mingw,posix,generic,mingw,vs,vs_XX,vsXX_YY}",
         default=get_default_lua_target())
+    parser.add_argument("--shared", help="Don't make a shared library when building standard Lua.",
+                        action="store_true", default=False)
     parser.add_argument("--no-readline", help="Don't use readline library when building standard Lua.",
                         action="store_true", default=False)
     parser.add_argument("--timeout",
