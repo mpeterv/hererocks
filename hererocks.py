@@ -1857,9 +1857,10 @@ def main(argv=None):
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
         "to checkout, 'master' by default. "
-        "Default git repo is https://github.com/lua/lua which contains tags for most "
-        "unstable versions, i.e. Lua 5.3.2-rc1 can be installed using '@5.3.2-rc1' as version. "
-        "The argument can also be a path to local directory.")
+        "Default git repo is https://github.com/lua/lua. "
+        "The argument can also be a path to local directory. "
+        "When installing PUC-Rio Lua from a git repo or a local directory, "
+        "source files are expected to be in the root directory instead of 'src'. ")
     parser.add_argument(
         "-j", "--luajit", help="Version of LuaJIT to install. "
         "Version can be specified in the same way as for standard Lua. "
