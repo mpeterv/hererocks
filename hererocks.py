@@ -1080,6 +1080,28 @@ class RioLua(Lua):
                  }
                }
              }
+        """,
+        "lua_pushcclosure should not call the garbage collector when n is zero": """
+            lapi.c:
+            @@ -533,6 +533,7 @@
+               lua_lock(L);
+               if (n == 0) {
+                 setfvalue(L->top, fn);
+            +    api_incr_top(L);
+               }
+               else {
+                 CClosure *cl;
+            @@ -546,9 +547,9 @@
+                   /* does not need barrier because closure is white */
+                 }
+                 setclCvalue(L, L->top, cl);
+            +    api_incr_top(L);
+            +    luaC_checkGC(L);
+               }
+            -  api_incr_top(L);
+            -  luaC_checkGC(L);
+               lua_unlock(L);
+             }
         """
     }
     patches_per_version = {
@@ -1102,7 +1124,8 @@ class RioLua(Lua):
             "4": [
                 "Wrong code generated for a 'goto' followed by a label inside an 'if'",
                 "Lua does not check GC when creating error messages",
-                "Dead keys with nil values can stay in weak tables"
+                "Dead keys with nil values can stay in weak tables",
+                "lua_pushcclosure should not call the garbage collector when n is zero"
             ]
         }
     }
