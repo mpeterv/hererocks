@@ -67,7 +67,7 @@ class TestCLI(unittest.TestCase):
         self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "https://github.com/mpeterv/luarocks@master"])
 
     def test_install_lua_from_git_with_latest_luarocks(self):
-        self.assertHererocksSuccess(["--lua", "@", "--luarocks", "latest"])
+        self.assertHererocksSuccess(["--lua", "@b1daa06", "--luarocks", "latest"])
         self.assertHererocksSuccess(["--show"], ["Programs installed in", "cloned from https://github.com/lua/lua"])
         self.assertSuccess(["luarocks", "--version"])
 
