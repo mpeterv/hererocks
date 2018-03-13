@@ -12,7 +12,7 @@ matrix:
       language: generic
 
 install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then pip2 install pyflakes pep8 coverage coveralls nose; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sudo pip2 install pyflakes pep8 coverage coveralls nose; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install pyflakes pep8 coverage coveralls nose; fi
 
 script:
