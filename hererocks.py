@@ -1498,18 +1498,18 @@ class LuaRocks(Program):
         "2.1.0", "2.1.1", "2.1.2",
         "2.2.0", "2.2.1", "2.2.2",
         "2.3.0",
-        "2.4.0", "2.4.1", "2.4.2", "2.4.3",
+        "2.4.0", "2.4.1", "2.4.2", "2.4.3", "2.4.4"
     ]
     translations = {
-        "2": "2.4.3",
+        "2": "2.4.4",
         "2.0": "2.0.13",
         "2.1": "2.1.2",
         "2.2": "2.2.2",
         "2.3": "2.3.0",
-        "2.4": "2.4.3",
-        "3": "@luarocks-3",
-        "^": "2.4.3",
-        "latest": "2.4.3"
+        "2.4": "2.4.4",
+        "3": "@master",
+        "^": "2.4.4",
+        "latest": "2.4.4"
     }
     checksums = {
         "luarocks-2.0.10.tar.gz"   : "11731dfe6e210a962cb2a857b8b2f14a9ab1043e13af09a1b9455b486401b46e",
@@ -1546,6 +1546,8 @@ class LuaRocks(Program):
         "luarocks-2.4.2-win32.zip" : "63abc6f1240e0774f94bfe4150eaa5be06979c245db1dd5c8ddc4fb4570f7204",
         "luarocks-2.4.3.tar.gz"    : "4d414d32fed5bb121c72d3ff1280b7f2dc9027a9bc012e41dfbffd5b519b362e",
         "luarocks-2.4.3-win32.zip" : "08821ec39e7c3ad20f5b3d3e118ba8f1f5a7db6e6ad22e11eb5e8a2bdc95cbfb",
+        "luarocks-2.4.4.tar.gz"    : "3938df33de33752ff2c526e604410af3dceb4b7ff06a770bc4a240de80a1f934",
+        "luarocks-2.4.4-win32.zip" : "763d2fbe301b5f941dd5ea4aea485fb35e75cbbdceca8cc2f18726b75f9895c1",
     }
 
     def is_luarocks_2_0(self):
@@ -1869,9 +1871,9 @@ def main(argv=None):
         "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
-        "As with Lua, a version number (in range 2.0.8 - 2.4.3), '^', git URI with reference or "
+        "As with Lua, a version number (in range 2.0.8 - 2.4.4), '^', git URI with reference or "
         "a local path can be used. '3' can be used as a version number and installs from "
-        "the 'luarocks-3' branch of the standard LuaRocks git repo. "
+        "the 'master' branch of the standard LuaRocks git repo. "
         "Note that Lua 5.2 is not supported in LuaRocks 2.0.8 "
         "and Lua 5.3 is supported only since LuaRocks 2.2.0.")
     parser.add_argument("--show", default=False, action="store_true",
