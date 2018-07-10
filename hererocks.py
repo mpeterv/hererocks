@@ -1102,6 +1102,91 @@ class RioLua(Lua):
             -  luaC_checkGC(L);
                lua_unlock(L);
              }
+        """,
+        "Lua crashes when building sequences with more than 2^30 elements": """
+            ltable.c:
+            @@ -223,7 +223,9 @@
+               unsigned int na = 0;  /* number of elements to go to array part */
+               unsigned int optimal = 0;  /* optimal size for array part */
+               /* loop while keys can fill more than half of total size */
+            -  for (i = 0, twotoi = 1; *pna > twotoi / 2; i++, twotoi *= 2) {
+            +  for (i = 0, twotoi = 1;
+            +       twotoi > 0 && *pna > twotoi / 2;
+            +       i++, twotoi *= 2) {
+                 if (nums[i] > 0) {
+                   a += nums[i];
+                   if (a > twotoi/2) {  /* more than half elements present? */
+        """,
+        "Table length computation overflows for sequences larger than 2^31 elements": """
+            ltable.h:
+            @@ -56,3 +56,3 @@
+             LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
+            -LUAI_FUNC int luaH_getn (Table *t);
+            +LUAI_FUNC lua_Unsigned luaH_getn (Table *t);
+
+            ltable.c:
+            @@ -614,4 +614,4 @@
+
+            -static int unbound_search (Table *t, unsigned int j) {
+            -  unsigned int i = j;  /* i is zero or a present index */
+            +static lua_Unsigned unbound_search (Table *t, lua_Unsigned j) {
+            +  lua_Unsigned i = j;  /* i is zero or a present index */
+               j++;
+            @@ -620,3 +620,3 @@
+                 i = j;
+            -    if (j > cast(unsigned int, MAX_INT)/2) {  /* overflow? */
+            +    if (j > l_castS2U(LUA_MAXINTEGER) / 2) {  /* overflow? */
+                   /* table was built with bad purposes: resort to linear search */
+            @@ -630,3 +630,3 @@
+               while (j - i > 1) {
+            -    unsigned int m = (i+j)/2;
+            +    lua_Unsigned m = (i+j)/2;
+                 if (ttisnil(luaH_getint(t, m))) j = m;
+            @@ -642,3 +642,3 @@
+             */
+            -int luaH_getn (Table *t) {
+            +lua_Unsigned luaH_getn (Table *t) {
+               unsigned int j = t->sizearray;
+        """,
+        "Memory-allocation error when resizing a table can leave it in an inconsistent state":
+        """
+            ltable.c:
+            @@ -332,17 +332,34 @@
+             }
+
+
+            +typedef struct {
+            +  Table *t;
+            +  unsigned int nhsize;
+            +} AuxsetnodeT;
+            +
+            +
+            +static void auxsetnode (lua_State *L, void *ud) {
+            +  AuxsetnodeT *asn = cast(AuxsetnodeT *, ud);
+            +  setnodevector(L, asn->t, asn->nhsize);
+            +}
+            +
+            +
+             void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
+                                                       unsigned int nhsize) {
+               unsigned int i;
+               int j;
+            +  AuxsetnodeT asn;
+               unsigned int oldasize = t->sizearray;
+               int oldhsize = allocsizenode(t);
+               Node *nold = t->node;  /* save old hash ... */
+               if (nasize > oldasize)  /* array part must grow? */
+                 setarrayvector(L, t, nasize);
+               /* create new hash part with appropriate size */
+            -  setnodevector(L, t, nhsize);
+            +  asn.t = t; asn.nhsize = nhsize;
+            +  if (luaD_rawrunprotected(L, auxsetnode, &asn) != LUA_OK) {  /* mem. error? */
+            +    setarrayvector(L, t, oldasize);  /* array back to its original size */
+            +    luaD_throw(L, LUA_ERRMEM);  /* rethrow memory error */
+            +  }
+               if (nasize < oldasize) {  /* array part must shrink? */
+                 t->sizearray = nasize;
+                 /* re-insert elements from vanishing slice */
         """
     }
     patches_per_version = {
@@ -1123,9 +1208,12 @@ class RioLua(Lua):
             ],
             "4": [
                 "Wrong code generated for a 'goto' followed by a label inside an 'if'",
+                "Lua crashes when building sequences with more than 2^30 elements",
+                "Table length computation overflows for sequences larger than 2^31 elements",
                 "Lua does not check GC when creating error messages",
                 "Dead keys with nil values can stay in weak tables",
-                "lua_pushcclosure should not call the garbage collector when n is zero"
+                "lua_pushcclosure should not call the garbage collector when n is zero",
+                "Memory-allocation error when resizing a table can leave it in an inconsistent state"
             ]
         }
     }
