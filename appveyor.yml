@@ -7,11 +7,11 @@ environment:
 
 build_script:
   - PATH %CD%\here\bin;C:\mingw\bin;C:\python%Python%;C:\python%Python%\scripts;%PATH%
-  - pip install pyflakes pep8 coverage coveralls nose
+  - pip install pyflakes pycodestyle coverage coveralls nose
 
 test_script:
   - pyflakes .
-  - pep8 .
+  - pycodestyle .
   - nosetests
   - coverage report
   - if not "%COVERALLS_REPO_TOKEN%"=="" coveralls

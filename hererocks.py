@@ -154,7 +154,7 @@ def write_activation_scripts():
         "LOCATION_DQ": opts.location.replace("\\", "\\\\").replace('"', '\\"'),
         "LOCATION_SQ": opts.location.replace("'", "'\\''"),
         "LOCATION_NESTED_SQ": opts.location.replace("'", "'\\''").replace("'", "'\\''"),
-        "LOCATION_PAREN": re.sub("[&,=()]", "^\g<0>", opts.location)
+        "LOCATION_PAREN": re.sub("[&,=()]", r"^\g<0>", opts.location)
     }
 
     for template_name in template_names:
@@ -165,9 +165,7 @@ def write_activation_scripts():
             script_handle.write(script)
 
 def is_executable(path):
-    return (os.path.exists(path) and
-            os.access(path, os.F_OK | os.X_OK) and
-            not os.path.isdir(path))
+    return os.path.exists(path) and os.access(path, os.F_OK | os.X_OK) and not os.path.isdir(path)
 
 def program_exists(prog):
     path = os.environ.get("PATH", os.defpath)
