@@ -419,8 +419,12 @@ def sha256_of_file(filename):
     return hashlib.sha256(contents).hexdigest()
 
 def strip_extensions(filename):
-    # Just handle .zip and .tar.gz.
-    return os.path.splitext(os.path.splitext(filename)[0])[0]
+    if filename.endswith(".zip"):
+        return filename[:-len(".zip")]
+    elif filename.endswith(".tar.gz"):
+        return filename[:-len(".tar.gz")]
+    else:
+        return filename
 
 class Program(object):
     def __init__(self, version):
