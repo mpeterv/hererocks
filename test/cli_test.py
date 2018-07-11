@@ -146,3 +146,7 @@ class TestCLI(unittest.TestCase):
             "activate 2: {}{}{}".format(path2, os.pathsep, path),
             "deactivate 2: {}".format(path)
         ], from_prefix=False)
+
+    def test_install_lua_5_4_with_luarocks_3(self):
+        self.assertHererocksSuccess(["--lua", "5.4", "--luarocks", "3"])
+        self.assertHererocksSuccess(["--lua", "5.4.0-work1", "--luarocks", "3"])

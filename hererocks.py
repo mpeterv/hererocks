@@ -196,7 +196,6 @@ platform_to_lua_target = {
 def using_cl():
     return opts.target.startswith("vs")
 
-
 def get_default_lua_target():
     for plat, lua_target in platform_to_lua_target.items():
         if sys.platform.startswith(plat):
@@ -419,6 +418,10 @@ def sha256_of_file(filename):
 
     return hashlib.sha256(contents).hexdigest()
 
+def strip_extensions(filename):
+    # Just handle .zip and .tar.gz.
+    return os.path.splitext(os.path.splitext(filename)[0])[0]
+
 class Program(object):
     def __init__(self, version):
         version = self.translations.get(version, version)
@@ -428,7 +431,6 @@ class Program(object):
             self.source = "release"
             self.fetched = False
             self.version = version
-            self.fixed_version = version
             self.version_suffix = " " + version
         elif "@" in version:
             # Version from a git repo.
@@ -497,15 +499,6 @@ class Program(object):
         if need_checkout and ref != "master":
             run("git", "checkout", ref)
 
-    def get_download_name(self):
-        return self.name + "-" + self.fixed_version + ("-win32" if self.win32_zip else "")
-
-    def get_file_name(self):
-        return self.get_download_name() + (".zip" if self.win32_zip else ".tar.gz")
-
-    def get_download_url(self, base_url):
-        return base_url + "/" + self.get_file_name()
-
     def fetch(self):
         if self.fetched:
             return
@@ -518,18 +511,17 @@ class Program(object):
             return
 
         if opts.downloads is None:
-            archive_name = os.path.join(temp_dir, self.get_file_name())
+            archive_name = os.path.join(temp_dir, self.get_download_name())
         else:
             if not os.path.exists(opts.downloads):
                 os.makedirs(opts.downloads)
 
-            archive_name = os.path.join(opts.downloads, self.get_file_name())
+            archive_name = os.path.join(opts.downloads, self.get_download_name())
 
         if opts.downloads and os.path.exists(archive_name):
             print("Fetching {}{} (cached)".format(self.title, self.version_suffix))
         else:
-            for base_url in self.downloads:
-                url = self.get_download_url(base_url)
+            for url in self.get_download_urls():
                 print("Fetching {}{} from {}".format(self.title, self.version_suffix, url))
 
                 try:
@@ -542,7 +534,7 @@ class Program(object):
                 sys.exit(1)
 
         print("Verifying SHA256 checksum")
-        expected_checksum = self.checksums[self.get_file_name()]
+        expected_checksum = self.checksums[self.get_download_name()]
         observed_checksum = sha256_of_file(archive_name)
         if expected_checksum != observed_checksum:
             message = "SHA256 checksum mismatch for {}\nExpected: {}\nObserved: {}".format(
@@ -553,14 +545,14 @@ class Program(object):
             else:
                 sys.exit("Error: " + message)
 
-        if self.win32_zip:
+        if archive_name.endswith(".zip"):
             archive = zipfile.ZipFile(archive_name)
         else:
             archive = tarfile.open(archive_name, "r:gz")
 
         archive.extractall(temp_dir)
         archive.close()
-        os.chdir(os.path.join(temp_dir, self.get_download_name()))
+        os.chdir(os.path.join(temp_dir, strip_extensions(self.get_download_name())))
         self.fetched = True
 
     def set_identifiers(self):
@@ -875,13 +867,14 @@ class Patch(object):
 class RioLua(Lua):
     name = "lua"
     title = "Lua"
-    downloads = ["http://www.lua.org/ftp", "http://webserver2.tecgraf.puc-rio.br/lua/mirror/ftp"]
-    win32_zip = False
+    base_download_urls = ["http://www.lua.org/ftp", "http://webserver2.tecgraf.puc-rio.br/lua/mirror/ftp"]
+    work_base_download_url = "http://www.lua.org/work"
     default_repo = "https://github.com/lua/lua"
     versions = [
         "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
         "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
-        "5.3.0", "5.3.1", "5.3.2", "5.3.3", "5.3.4", "5.3.5"
+        "5.3.0", "5.3.1", "5.3.2", "5.3.3", "5.3.4", "5.3.5",
+        "5.4.0", "5.4.0-work1", "5.4.0-work2"
     ]
     translations = {
         "5": "5.3.5",
@@ -889,27 +882,31 @@ class RioLua(Lua):
         "5.1.0": "5.1",
         "5.2": "5.2.4",
         "5.3": "5.3.5",
+        "5.4": "5.4.0-work2",
+        "5.4.0": "5.4.0-work2",
         "^": "5.3.5",
         "latest": "5.3.5"
     }
     checksums = {
-        "lua-5.1.tar.gz"  : "7f5bb9061eb3b9ba1e406a5aa68001a66cb82bac95748839dc02dd10048472c1",
-        "lua-5.1.1.tar.gz": "c5daeed0a75d8e4dd2328b7c7a69888247868154acbda69110e97d4a6e17d1f0",
-        "lua-5.1.2.tar.gz": "5cf098c6fe68d3d2d9221904f1017ff0286e4a9cc166a1452a456df9b88b3d9e",
-        "lua-5.1.3.tar.gz": "6b5df2edaa5e02bf1a2d85e1442b2e329493b30b0c0780f77199d24f087d296d",
-        "lua-5.1.4.tar.gz": "b038e225eaf2a5b57c9bcc35cd13aa8c6c8288ef493d52970c9545074098af3a",
-        "lua-5.1.5.tar.gz": "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333",
-        "lua-5.2.0.tar.gz": "cabe379465aa8e388988073d59b69e76ba0025429d2c1da80821a252cdf6be0d",
-        "lua-5.2.1.tar.gz": "64304da87976133196f9e4c15250b70f444467b6ed80d7cfd7b3b982b5177be5",
-        "lua-5.2.2.tar.gz": "3fd67de3f5ed133bf312906082fa524545c6b9e1b952e8215ffbd27113f49f00",
-        "lua-5.2.3.tar.gz": "13c2fb97961381f7d06d5b5cea55b743c163800896fd5c5e2356201d3619002d",
-        "lua-5.2.4.tar.gz": "b9e2e4aad6789b3b63a056d442f7b39f0ecfca3ae0f1fc0ae4e9614401b69f4b",
-        "lua-5.3.0.tar.gz": "ae4a5eb2d660515eb191bfe3e061f2b8ffe94dce73d32cfd0de090ddcc0ddb01",
-        "lua-5.3.1.tar.gz": "072767aad6cc2e62044a66e8562f51770d941e972dc1e4068ba719cd8bffac17",
-        "lua-5.3.2.tar.gz": "c740c7bb23a936944e1cc63b7c3c5351a8976d7867c5252c8854f7b2af9da68f",
-        "lua-5.3.3.tar.gz": "5113c06884f7de453ce57702abaac1d618307f33f6789fa870e87a59d772aca2",
-        "lua-5.3.4.tar.gz": "f681aa518233bc407e23acf0f5887c884f17436f000d453b2491a9f11a52400c",
-        "lua-5.3.5.tar.gz": "0c2eed3f960446e1a3e4b9a1ca2f3ff893b6ce41942cf54d5dd59ab4b3b058ac",
+        "lua-5.1.tar.gz"        : "7f5bb9061eb3b9ba1e406a5aa68001a66cb82bac95748839dc02dd10048472c1",
+        "lua-5.1.1.tar.gz"      : "c5daeed0a75d8e4dd2328b7c7a69888247868154acbda69110e97d4a6e17d1f0",
+        "lua-5.1.2.tar.gz"      : "5cf098c6fe68d3d2d9221904f1017ff0286e4a9cc166a1452a456df9b88b3d9e",
+        "lua-5.1.3.tar.gz"      : "6b5df2edaa5e02bf1a2d85e1442b2e329493b30b0c0780f77199d24f087d296d",
+        "lua-5.1.4.tar.gz"      : "b038e225eaf2a5b57c9bcc35cd13aa8c6c8288ef493d52970c9545074098af3a",
+        "lua-5.1.5.tar.gz"      : "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333",
+        "lua-5.2.0.tar.gz"      : "cabe379465aa8e388988073d59b69e76ba0025429d2c1da80821a252cdf6be0d",
+        "lua-5.2.1.tar.gz"      : "64304da87976133196f9e4c15250b70f444467b6ed80d7cfd7b3b982b5177be5",
+        "lua-5.2.2.tar.gz"      : "3fd67de3f5ed133bf312906082fa524545c6b9e1b952e8215ffbd27113f49f00",
+        "lua-5.2.3.tar.gz"      : "13c2fb97961381f7d06d5b5cea55b743c163800896fd5c5e2356201d3619002d",
+        "lua-5.2.4.tar.gz"      : "b9e2e4aad6789b3b63a056d442f7b39f0ecfca3ae0f1fc0ae4e9614401b69f4b",
+        "lua-5.3.0.tar.gz"      : "ae4a5eb2d660515eb191bfe3e061f2b8ffe94dce73d32cfd0de090ddcc0ddb01",
+        "lua-5.3.1.tar.gz"      : "072767aad6cc2e62044a66e8562f51770d941e972dc1e4068ba719cd8bffac17",
+        "lua-5.3.2.tar.gz"      : "c740c7bb23a936944e1cc63b7c3c5351a8976d7867c5252c8854f7b2af9da68f",
+        "lua-5.3.3.tar.gz"      : "5113c06884f7de453ce57702abaac1d618307f33f6789fa870e87a59d772aca2",
+        "lua-5.3.4.tar.gz"      : "f681aa518233bc407e23acf0f5887c884f17436f000d453b2491a9f11a52400c",
+        "lua-5.3.5.tar.gz"      : "0c2eed3f960446e1a3e4b9a1ca2f3ff893b6ce41942cf54d5dd59ab4b3b058ac",
+        "lua-5.4.0-work1.tar.gz": "ada03980481110bfde44b3bd44bde4b03d72c84318b34d657b5b5a91ddb3912c",
+        "lua-5.4.0-work2.tar.gz": "68b7e8f1ff561b9a7e1c29de26ff99ac2a704773c0965a4fe1800b7657d5a057",
     }
     all_patches = {
         "When loading a file, Lua may call the reader function again after it returned end of input": """
@@ -1233,6 +1230,15 @@ class RioLua(Lua):
         else:
             self.dll_file = None
 
+    def get_download_name(self):
+        return "{}-{}.tar.gz".format(self.name, self.version)
+
+    def get_download_urls(self):
+        if self.version.startswith("5.4.0-work"):
+            return ["{}/{}".format(self.work_base_download_url, self.get_download_name())]
+        else:
+            return ["{}/{}".format(base_download_url, self.get_download_name()) for base_download_url in self.base_download_urls]
+
     def get_source_files_prefix(self):
         # When installing PUC-Rio Lua from a git repo or local sources,
         # use directory structure of its GitHub mirror, where
@@ -1478,8 +1484,7 @@ class RioLua(Lua):
 class LuaJIT(Lua):
     name = "LuaJIT"
     title = "LuaJIT"
-    downloads = ["https://github.com/LuaJIT/LuaJIT/archive"]
-    win32_zip = False
+    base_download_url = "https://github.com/LuaJIT/LuaJIT/archive"
     default_repo = "https://github.com/LuaJIT/LuaJIT"
     versions = [
         "2.0.0", "2.0.1", "2.0.2", "2.0.3", "2.0.4", "2.0.5",
@@ -1504,15 +1509,12 @@ class LuaJIT(Lua):
         "LuaJIT-2.1.0-beta3.tar.gz": "409f7fe570d3c16558e594421c47bdd130238323c9d6fd6c83dedd2aaeb082a8",
     }
 
-    def __init__(self, version):
-        super(LuaJIT, self).__init__(version)
+    def get_download_name(self):
+        # v2.0.1 tag is broken, use v2.0.1-fixed.
+        return "{}-{}.tar.gz".format(self.name, "2.0.1-fixed" if self.version == "2.0.1" else self.version)
 
-        if self.source == "release" and self.version == "2.0.1":
-            # v2.0.1 tag is broken, use v2.0.1-fixed.
-            self.fixed_version = "2.0.1-fixed"
-
-    def get_download_url(self, base_url):
-        return base_url + "/v" + self.fixed_version + ".tar.gz"
+    def get_download_urls(self):
+        return ["{}/v{}.tar.gz".format(self.base_download_url, "2.0.1-fixed" if self.version == "2.0.1" else self.version)]
 
     @staticmethod
     def major_version_from_version():
@@ -1605,8 +1607,7 @@ class LuaJIT(Lua):
 class LuaRocks(Program):
     name = "luarocks"
     title = "LuaRocks"
-    downloads = ["http://luarocks.github.io/luarocks/releases"]
-    win32_zip = os.name == "nt"
+    base_download_url = "http://luarocks.github.io/luarocks/releases"
     default_repo = "https://github.com/luarocks/luarocks"
     versions = [
         "2.0.8", "2.0.9", "2.0.10", "2.0.11", "2.0.12", "2.0.13",
@@ -1664,6 +1665,12 @@ class LuaRocks(Program):
         "luarocks-2.4.4.tar.gz"    : "3938df33de33752ff2c526e604410af3dceb4b7ff06a770bc4a240de80a1f934",
         "luarocks-2.4.4-win32.zip" : "763d2fbe301b5f941dd5ea4aea485fb35e75cbbdceca8cc2f18726b75f9895c1",
     }
+
+    def get_download_name(self):
+        return "{}-{}{}".format(self.name, self.version, "-win32.zip" if os.name == "nt" else ".tar.gz")
+
+    def get_download_urls(self):
+        return ["{}/{}".format(self.base_download_url, self.get_download_name())]
 
     def is_luarocks_2_0(self):
         if self.source == "release":
@@ -1969,7 +1976,7 @@ def main(argv=None):
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
-        "Versions 5.1.0 - 5.3.5 are supported, "
+        "Versions 5.1.0 - 5.3.5 are supported, as well as 5.4.0-work1 and 5.4.0-work2. "
         "'^' or 'latest' can be used to install the latest stable version. "
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
