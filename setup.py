@@ -9,7 +9,7 @@ readme.close()
 
 setuptools.setup(
     name="hererocks",
-    version="0.18.0",
+    version="0.19.0",
     description="Tool for installing Lua and LuaRocks locally",
     long_description=long_description,
     keywords="lua",
@@ -29,7 +29,8 @@ setuptools.setup(
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6"
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7"
     ],
     py_modules=["hererocks"],
     entry_points={
