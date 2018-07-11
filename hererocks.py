@@ -1437,7 +1437,7 @@ class RioLua(Lua):
             # from a git repo that does not have them, like the default one.
             if len(built_luac_objs) > 0:
                 if using_cl():
-                    run("link", "/nologo", "/out:luac.exe", built_luac_objs, [lib_obj for lib_obj in lib_objs if lib_obj != "lopcodes.obj"])
+                    run("link", "/nologo", "/out:luac.exe", built_luac_objs, lib_objs)
 
                     if os.path.exists("luac.exe.manifest"):
                         run("mt", "/nologo", "-manifest", "luac.exe.manifest", "-outputresource:luac.exe")
