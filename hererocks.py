@@ -691,6 +691,10 @@ class Lua(Program):
             os.path.join(module_path, "?", "init.lua")
         ]
         module_path_parts.insert(0 if local_paths_first else 2, os.path.join(".", "?.lua"))
+
+        if self.major_version in ["5.3", "5.4"]:
+            module_path_parts.append(os.path.join(".", "?", "init.lua"))
+
         self.package_path = ";".join(module_path_parts)
 
         cmodule_path = os.path.join(opts.location, "lib", "lua", self.major_version)
