@@ -2075,7 +2075,7 @@ def main(argv=None):
     global opts
     opts = parser.parse_args(argv)
     if not opts.lua and not opts.luajit and not opts.luarocks and not opts.show:
-        parser.error("nothing to do")
+        parser.error("a version of Lua, LuaJIT, or LuaRocks needs to be specified unless --show is used")
 
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
