@@ -1977,6 +1977,21 @@ class UseActualArgsFileAction(argparse.Action):
 
         main(args_content.split("\r\n")[1:])
 
+def show_location():
+    if os.path.exists(opts.location):
+        all_identifiers = get_installed_identifiers()
+
+        if all_identifiers:
+            print("Programs installed in {}:".format(opts.location))
+
+            for program in [RioLua, LuaJIT, LuaRocks]:
+                if program.name in all_identifiers:
+                    show_identifiers(all_identifiers[program.name])
+        else:
+            print("No programs installed in {}.".format(opts.location))
+    else:
+        print("{} does not exist.".format(opts.location))
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description=hererocks_version + ", a tool for installing Lua and/or LuaRocks locally.",
@@ -2013,7 +2028,7 @@ def main(argv=None):
         "Lua 5.3 is supported only since LuaRocks 2.2.0, and Lua 5.4 is supported only since "
         "LuaRocks 3.0.0.")
     parser.add_argument("--show", default=False, action="store_true",
-                        help="Instead of installing show programs already present in <location>")
+                        help="Show programs installed in <location>, possibly after installing new ones.")
     parser.add_argument("-i", "--ignore-installed", default=False, action="store_true",
                         help="Install even if requested version is already present.")
     parser.add_argument(
@@ -2080,74 +2095,59 @@ def main(argv=None):
     if opts.lua and opts.luajit:
         parser.error("can't install both PUC-Rio Lua and LuaJIT")
 
-    if (opts.lua or opts.luajit or opts.luarocks) and opts.show:
-        parser.error("can't both install and show")
+    if opts.lua or opts.luajit or opts.luarocks:
+        global temp_dir
+        temp_dir = tempfile.mkdtemp()
+
+        if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
+            setup_vs(opts.target)
+
+        start_dir = os.getcwd()
+        opts.location = os.path.abspath(opts.location)
+
+        if opts.downloads is not None:
+            opts.downloads = os.path.abspath(opts.downloads)
+
+        if opts.builds is not None:
+            opts.builds = os.path.abspath(opts.builds)
+
+        identifiers = get_installed_identifiers()
+
+        if not os.path.exists(os.path.join(opts.location, "bin")):
+            os.makedirs(os.path.join(opts.location, "bin"))
+
+        write_activation_scripts()
+
+        if opts.lua:
+            if "LuaJIT" in identifiers:
+                del identifiers["LuaJIT"]
+
+            if RioLua(opts.lua).update_identifiers(identifiers):
+                save_installed_identifiers(identifiers)
+
+            os.chdir(start_dir)
+
+        if opts.luajit:
+            if "lua" in identifiers:
+                del identifiers["lua"]
+
+            if LuaJIT(opts.luajit).update_identifiers(identifiers):
+                save_installed_identifiers(identifiers)
+
+            os.chdir(start_dir)
+
+        if opts.luarocks:
+            if LuaRocks(opts.luarocks).update_identifiers(identifiers):
+                save_installed_identifiers(identifiers)
+
+            os.chdir(start_dir)
+
+        remove_dir(temp_dir)
+        print("Done.")
 
     if opts.show:
-        if os.path.exists(opts.location):
-            all_identifiers = get_installed_identifiers()
+        show_location()
 
-            if all_identifiers:
-                print("Programs installed in {}:".format(opts.location))
-
-                for program in [RioLua, LuaJIT, LuaRocks]:
-                    if program.name in all_identifiers:
-                        show_identifiers(all_identifiers[program.name])
-            else:
-                print("No programs installed in {}.".format(opts.location))
-        else:
-            print("Location does not exist.")
-
-        sys.exit(0)
-
-    global temp_dir
-    temp_dir = tempfile.mkdtemp()
-
-    if (opts.lua or opts.luajit) and os.name == "nt" and argv is None and using_cl():
-        setup_vs(opts.target)
-
-    start_dir = os.getcwd()
-    opts.location = os.path.abspath(opts.location)
-
-    if opts.downloads is not None:
-        opts.downloads = os.path.abspath(opts.downloads)
-
-    if opts.builds is not None:
-        opts.builds = os.path.abspath(opts.builds)
-
-    identifiers = get_installed_identifiers()
-
-    if not os.path.exists(os.path.join(opts.location, "bin")):
-        os.makedirs(os.path.join(opts.location, "bin"))
-
-    write_activation_scripts()
-
-    if opts.lua:
-        if "LuaJIT" in identifiers:
-            del identifiers["LuaJIT"]
-
-        if RioLua(opts.lua).update_identifiers(identifiers):
-            save_installed_identifiers(identifiers)
-
-        os.chdir(start_dir)
-
-    if opts.luajit:
-        if "lua" in identifiers:
-            del identifiers["lua"]
-
-        if LuaJIT(opts.luajit).update_identifiers(identifiers):
-            save_installed_identifiers(identifiers)
-
-        os.chdir(start_dir)
-
-    if opts.luarocks:
-        if LuaRocks(opts.luarocks).update_identifiers(identifiers):
-            save_installed_identifiers(identifiers)
-
-        os.chdir(start_dir)
-
-    remove_dir(temp_dir)
-    print("Done.")
     sys.exit(0)
 
 if __name__ == "__main__":
