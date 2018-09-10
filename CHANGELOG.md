@@ -4,8 +4,8 @@
 
 ### New features and improvements
 
-* Added support for LuaRocks 3.0.0 and 3.0.1. `latest` and `^` aliases now point
-  to 3.0.1.
+* Added support for LuaRocks 3.0.0 - 3.0.2. `latest` and `^` aliases still
+  point to `2.4.4`.
 * `--show` can now be used when installing programs; all programs present
   in the given location are listed after installation is complete.
 

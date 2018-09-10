@@ -1623,7 +1623,7 @@ class LuaRocks(Program):
         "2.2.0", "2.2.1", "2.2.2",
         "2.3.0",
         "2.4.0", "2.4.1", "2.4.2", "2.4.3", "2.4.4",
-        "3.0.0", "3.0.1"
+        "3.0.0", "3.0.1", "3.0.2"
     ]
     translations = {
         "2": "2.4.4",
@@ -1632,10 +1632,10 @@ class LuaRocks(Program):
         "2.2": "2.2.2",
         "2.3": "2.3.0",
         "2.4": "2.4.4",
-        "3": "3.0.1",
-        "3.0": "3.0.1",
-        "^": "3.0.1",
-        "latest": "3.0.1"
+        "3": "3.0.2",
+        "3.0": "3.0.2",
+        "^": "2.4.4",
+        "latest": "2.4.4"
     }
     checksums = {
         "luarocks-2.0.10.tar.gz"   : "11731dfe6e210a962cb2a857b8b2f14a9ab1043e13af09a1b9455b486401b46e",
@@ -1678,6 +1678,8 @@ class LuaRocks(Program):
         "luarocks-3.0.0-win32.zip" : "f5c6070f49f78ef61a2e5d6de353b34ef691ad4a6b45e065d5c85701a4a3a981",
         "luarocks-3.0.1.tar.gz"    : "b989c4b60d6c9edcd65169e5e42fcffbd39cdbebe6b138fa5aea45102f8d9ec0",
         "luarocks-3.0.1-win32.zip" : "af54263b8f71406d79556c880f3e2674e6690934a69cefbbdfd18710f05eeeaf",
+        "luarocks-3.0.2.tar.gz"    : "3836267eff2f85fb552234e966602b1e649c58f81f47c7de3785e071c8127f5a",
+        "luarocks-3.0.2-win32.zip" : "c9e93d7198f9ae7add331675d3d84fa1b61feb851814ee2a89b9930bd651bfb9",
     }
 
     def get_download_name(self):
@@ -2055,8 +2057,8 @@ def main(argv=None):
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
-        "Versions 5.1.0 - 5.3.5 are supported, as well as 5.4.0-work1 and 5.4.0-work2. "
-        "'^' or 'latest' can be used to install the latest stable version. "
+        "Versions 5.1.0 - 5.3.5 and 5.4.0-work1 - 5.4.0-work2 are supported. "
+        "'latest' and '^' are aliases for 5.3.5. "
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
         "to checkout, 'master' by default. "
@@ -2068,12 +2070,14 @@ def main(argv=None):
         "-j", "--luajit", help="Version of LuaJIT to install. "
         "Version can be specified in the same way as for standard Lua. "
         "Versions 2.0.0 - 2.1.0-beta3 are supported. "
-        "When installing from the LuaJIT main git repo its URI can be left out, "
-        "so that '@458a40b' installs from a commit and '@' installs from the master branch.")
+        "'latest' and '^' are aliases for to 2.0.5. "
+        "Default git repo is https://github.com/luajit/luajit. ")
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
-        "As with Lua, a version number (in range 2.0.8 - 3.0.1), '^', git URI with reference or "
-        "a local path can be used. "
+        "Version can be specified in the same way as for standard Lua. "
+        "Versions 2.0.8 - 3.0.2 are supported. "
+        "'latest' and '^' are aliases for 2.4.4. "
+        "Default git repo is https://github.com/luarocks/luarocks. "
         "Note that Lua 5.2 is not supported in LuaRocks 2.0.8, "
         "Lua 5.3 is supported only since LuaRocks 2.2.0, and Lua 5.4 is supported only since "
         "LuaRocks 3.0.0.")
