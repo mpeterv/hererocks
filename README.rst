@@ -95,7 +95,7 @@ Lua and LuaJIT have some flags that add compatibility with other Lua versions. L
 Installing standard PUC-Rio Lua
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.5, 5.4.0-work1 - 5.4.0-work2 (5.4 and 5.4.0 are aliases for 5.4.0-work2).
+Available versions: 5.1 - 5.1.5, 5.2.0 - 5.2.4, 5.3.0 - 5.3.5, 5.4.0-work1 - 5.4.0-work2 (5.4 and 5.4.0 are aliases for 5.4.0-work2). ``latest`` and ``^`` version aliases point to ``5.3.5``.
 
 Use ``5.1.0`` to install Lua ``5.1`` which was released without patch version for some reason.
 
@@ -104,12 +104,12 @@ When building Lua, ``hererocks`` tries to emulate a sensible ``make`` target. Th
 Installing LuaJIT
 ^^^^^^^^^^^^^^^^^
 
-Available versions: 2.0.0 - 2.0.5, 2.1.0-beta1 - 2.1.0-beta3.
+Available versions: 2.0.0 - 2.0.5, 2.1.0-beta1 - 2.1.0-beta3. ``latest`` and ``^`` version aliases point to ``2.0.5``.
 
 Installing LuaRocks
 ^^^^^^^^^^^^^^^^^^^
 
-Available versions: 2.0.8 - 2.0.13, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 2.4.0 - 2.4.4, 3 (installs from ``master`` branch of the LuaRocks git repository).
+Available versions: 2.0.8 - 2.0.13, 2.1.0 - 2.1.2, 2.2.0 - 2.2.2, 2.3.0, 2.4.0 - 2.4.4, 3.0.0 - 3.0.2. ``latest`` and ``^`` version aliases point to ``2.4.4``.
 
 Version 2.0.8 does not support Lua 5.2. Versions 2.0.8 - 2.1.2 do not support Lua 5.3.
 
