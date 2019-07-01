@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import shutil
 import subprocess
@@ -147,6 +149,24 @@ class TestCLI(unittest.TestCase):
             "deactivate 2: {}".format(path)
         ], from_prefix=False)
 
+    def test_activate_posix_script(self):
+        self.assertHererocksSuccess(["--lua", "5.1"], location=os.path.join("here", "bad (dir) 1"))
+        self.assertHererocksSuccess(["--lua", "5.2"], location=os.path.join("here", "bad (dir) 2"))
+        checker = os.path.join("test", "check_activate_posix.sh")
+
+        path = os.getenv("PATH")
+        path1 = os.path.abspath(os.path.join("test", "here", "bad (dir) 1", "bin"))
+        path2 = os.path.abspath(os.path.join("test", "here", "bad (dir) 2", "bin"))
+        self.assertSuccess([checker], [
+            "initial: {}".format(path),
+            "activate 1: {}{}{}".format(path1, os.pathsep, path),
+            "deactivate 1: {}".format(path),
+            "activate 1 again: {}{}{}".format(path1, os.pathsep, path),
+            "reactivate 1: {}{}{}".format(path1, os.pathsep, path),
+            "activate 2: {}{}{}".format(path2, os.pathsep, path),
+            "deactivate 2: {}".format(path)
+        ], from_prefix=False)
+
     def test_install_lua_5_4_with_luarocks_3(self):
         self.assertHererocksSuccess(["--lua", "5.4", "--luarocks", "3"])
         self.assertHererocksSuccess(["--lua", "5.4.0-work1", "--luarocks", "3"])
@@ -154,3 +174,6 @@ class TestCLI(unittest.TestCase):
         if os.name == "nt":
             self.assertHererocksSuccess(["--lua", "5.4", "--luarocks", "3", "--target", "vs"])
             self.assertHererocksSuccess(["--lua", "5.4.0-work1", "--luarocks", "3", "--target", "vs"])
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

@@ -93,6 +93,30 @@ activation_script_templates = {
             hash -r 2>/dev/null
         fi
     """,
+    "activate_posix": """
+        s=$(command -V deactivate_lua)
+        if [ $? -eq 0 ]; then
+            if [ "${s##*function}" = '' ]; then
+                deactivate_lua
+            fi;
+        fi;
+
+        deactivate_lua () {
+            if [ -x '#LOCATION_SQ#/bin/lua' ]; then
+                PATH=`'#LOCATION_SQ#/bin/lua' '#LOCATION_SQ#/bin/get_deactivated_path.lua'`
+                export PATH
+
+                hash -r 2>/dev/null
+            fi
+
+            unset -f deactivate_lua
+        }
+
+        PATH='#LOCATION_SQ#/bin':"$PATH"
+        export PATH
+
+        hash -r 2>/dev/null
+    """,
     "activate.csh": """
         which deactivate-lua >&/dev/null && deactivate-lua
 
@@ -147,7 +171,7 @@ def write_activation_scripts():
     if os.name == "nt":
         template_names = ["get_deactivated_path.lua", "activate.bat", "deactivate-lua.bat", "activate.ps1"]
     else:
-        template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish"]
+        template_names = ["get_deactivated_path.lua", "activate", "activate.csh", "activate.fish", "activate_posix"]
 
     replacements = {
         "LOCATION": opts.location,
