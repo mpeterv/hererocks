@@ -1,11 +1,11 @@
 hererocks
 =========
 
-.. |travis| image:: https://travis-ci.org/mpeterv/hererocks.svg?branch=master
-  :target: https://travis-ci.org/mpeterv/hererocks
+.. |travis| image:: https://travis-ci.org/luarocks/hererocks.svg?branch=master
+  :target: https://travis-ci.org/luarocks/hererocks
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/85mocuaej4owyifj?svg=true
-  :target: https://ci.appveyor.com/project/mpeterv/hererocks
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/vnoe4k98tgxo9hna?svg=true
+  :target: https://ci.appveyor.com/project/hishamhm/hererocks
 
 |travis| |appveyor|
 
@@ -31,7 +31,7 @@ Installation
 
 Using `pip <https://pypi.python.org/pypi/pip>`_: run ``pip install hererocks``, using ``sudo`` if necessary.
 
-Manually: download hererocks with ``wget https://raw.githubusercontent.com/mpeterv/hererocks/latest/hererocks.py``, then use ``python hererocks.py ...`` to run it.
+Manually: download hererocks with ``wget https://raw.githubusercontent.com/luarocks/hererocks/latest/hererocks.py``, then use ``python hererocks.py ...`` to run it.
 
 Requirements
 ------------

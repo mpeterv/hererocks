@@ -64,7 +64,7 @@ class TestCLI(unittest.TestCase):
         self.assertHererocksSuccess(["--luarocks", "latest", "--ignore-installed"], ["Fetching", "cached"])
 
     def test_install_latest_lua_with_luarocks_from_git(self):
-        self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "https://github.com/mpeterv/luarocks@master"])
+        self.assertHererocksSuccess(["--lua", "latest", "--luarocks", "https://github.com/luarocks/luarocks@master"])
 
     def test_install_lua_from_git_with_latest_luarocks(self):
         self.assertHererocksSuccess(["--lua", "@b1daa06", "--luarocks", "latest"])
