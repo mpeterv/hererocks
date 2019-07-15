@@ -13,7 +13,7 @@ setuptools.setup(
     description="Tool for installing Lua and LuaRocks locally",
     long_description=long_description,
     keywords="lua",
-    url="https://github.com/mpeterv/hererocks",
+    url="https://github.com/luarocks/hererocks",
     author="Peter Melnichenko",
     author_email="mpeterval@gmail.com",
     license="MIT",

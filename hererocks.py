@@ -906,7 +906,7 @@ class RioLua(Lua):
         "5.1", "5.1.1", "5.1.2", "5.1.3", "5.1.4", "5.1.5",
         "5.2.0", "5.2.1", "5.2.2", "5.2.3", "5.2.4",
         "5.3.0", "5.3.1", "5.3.2", "5.3.3", "5.3.4", "5.3.5",
-        "5.4.0", "5.4.0-work1", "5.4.0-work2"
+        "5.4.0", "5.4.0-work1", "5.4.0-work2", "5.4.0-alpha"
     ]
     translations = {
         "5": "5.3.5",
@@ -914,8 +914,8 @@ class RioLua(Lua):
         "5.1.0": "5.1",
         "5.2": "5.2.4",
         "5.3": "5.3.5",
-        "5.4": "5.4.0-work2",
-        "5.4.0": "5.4.0-work2",
+        "5.4": "5.4.0-alpha",
+        "5.4.0": "5.4.0-alpha",
         "^": "5.3.5",
         "latest": "5.3.5"
     }
@@ -939,6 +939,7 @@ class RioLua(Lua):
         "lua-5.3.5.tar.gz"      : "0c2eed3f960446e1a3e4b9a1ca2f3ff893b6ce41942cf54d5dd59ab4b3b058ac",
         "lua-5.4.0-work1.tar.gz": "ada03980481110bfde44b3bd44bde4b03d72c84318b34d657b5b5a91ddb3912c",
         "lua-5.4.0-work2.tar.gz": "68b7e8f1ff561b9a7e1c29de26ff99ac2a704773c0965a4fe1800b7657d5a057",
+        "lua-5.4.0-alpha.tar.gz": "d8504506ede2dbac73c5a74235feaabb2101caff59c7f87efe774b24a10e8407",
     }
     all_patches = {
         "When loading a file, Lua may call the reader function again after it returned end of input": """
@@ -1266,7 +1267,7 @@ class RioLua(Lua):
         return "{}-{}.tar.gz".format(self.name, self.version)
 
     def get_download_urls(self):
-        if self.version.startswith("5.4.0-work"):
+        if "work" in self.version or "alpha" in self.version:
             return ["{}/{}".format(self.work_base_download_url, self.get_download_name())]
         else:
             return ["{}/{}".format(base_download_url, self.get_download_name()) for base_download_url in self.base_download_urls]
@@ -1647,7 +1648,8 @@ class LuaRocks(Program):
         "2.2.0", "2.2.1", "2.2.2",
         "2.3.0",
         "2.4.0", "2.4.1", "2.4.2", "2.4.3", "2.4.4",
-        "3.0.0", "3.0.1", "3.0.2"
+        "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.0.4",
+        "3.1.0", "3.1.1", "3.1.2", "3.1.3"
     ]
     translations = {
         "2": "2.4.4",
@@ -1656,8 +1658,9 @@ class LuaRocks(Program):
         "2.2": "2.2.2",
         "2.3": "2.3.0",
         "2.4": "2.4.4",
-        "3": "3.0.2",
-        "3.0": "3.0.2",
+        "3": "3.1.3",
+        "3.0": "3.0.4",
+        "3.1": "3.1.3",
         "^": "2.4.4",
         "latest": "2.4.4"
     }
@@ -1704,6 +1707,18 @@ class LuaRocks(Program):
         "luarocks-3.0.1-win32.zip" : "af54263b8f71406d79556c880f3e2674e6690934a69cefbbdfd18710f05eeeaf",
         "luarocks-3.0.2.tar.gz"    : "3836267eff2f85fb552234e966602b1e649c58f81f47c7de3785e071c8127f5a",
         "luarocks-3.0.2-win32.zip" : "c9e93d7198f9ae7add331675d3d84fa1b61feb851814ee2a89b9930bd651bfb9",
+        "luarocks-3.0.3.tar.gz"    : "f9a3fca236c87db55bc128a182ff605731ca15b43b1c4942d98f5e34acc88a6e",
+        "luarocks-3.0.3-win32.zip" : "4fca0d87b9df7128a7d832027a5cda236569c9e5a2b037b6898f6b817c44028c",
+        "luarocks-3.0.4.tar.gz"    : "1236a307ca5c556c4fed9fdbd35a7e0e80ccf063024becc8c3bf212f37ff0edf",
+        "luarocks-3.0.4-win32.zip" : "ccd2313aff38fba5cf9704be6deafa552586c025c387f47679443d20fa89ba82",
+        "luarocks-3.1.0.tar.gz"    : "865eae1e49b0f701c955c1c8f7b6fae99287c9cef32227d64177509224908921",
+        "luarocks-3.1.0-win32.zip" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "luarocks-3.1.1.tar.gz"    : "3c26c102f8e69f81e12ea39037c770a00b6244e115a4c832e7a92feffdfad1aa",
+        "luarocks-3.1.1-win32.zip" : "8001e4755647da9e37c06c932c42ef846140cb59a36b780b75d00448967994a2",
+        "luarocks-3.1.2.tar.gz"    : "72a3b74f05b7fd011eed894dc34193ee80b3235fe58016ac9ffdbfceecc88950",
+        "luarocks-3.1.2-win32.zip" : "b9aa7dba9bf1658c7103425c8b0252f09c17eafbd8fd77343ecba0d5172ef879",
+        "luarocks-3.1.3.tar.gz"    : "c573435f495aac159e34eaa0a3847172a2298eb6295fcdc35d565f9f9b990513",
+        "luarocks-3.1.3-win32.zip" : "1f78f8bfff82b2cdf57ccd853f21a4918927e5f5ba49731e3e406b3867769782",
     }
 
     def get_download_name(self):
@@ -2081,7 +2096,7 @@ def main(argv=None):
     parser.add_argument(
         "-l", "--lua", help="Version of standard PUC-Rio Lua to install. "
         "Version can be specified as a version number, e.g. 5.2 or 5.3.1. "
-        "Versions 5.1.0 - 5.3.5 and 5.4.0-work1 - 5.4.0-work2 are supported. "
+        "Versions 5.1.0 - 5.3.5 and 5.4.0-work1 - 5.4.0-alpha are supported. "
         "'latest' and '^' are aliases for 5.3.5. "
         "If the argument contains '@', sources will be downloaded "
         "from a git repo using URI before '@' and using part after '@' as git reference "
@@ -2099,7 +2114,7 @@ def main(argv=None):
     parser.add_argument(
         "-r", "--luarocks", help="Version of LuaRocks to install. "
         "Version can be specified in the same way as for standard Lua. "
-        "Versions 2.0.8 - 3.0.2 are supported. "
+        "Versions 2.0.8 - 3.1.3 are supported. "
         "'latest' and '^' are aliases for 2.4.4. "
         "Default git repo is https://github.com/luarocks/luarocks. "
         "Note that Lua 5.2 is not supported in LuaRocks 2.0.8, "

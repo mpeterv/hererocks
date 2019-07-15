@@ -1,12 +1,12 @@
 package = "hererocks-test"
 version = "scm-1"
 source = {
-   url = "git://github.com/mpeterv/hererocks"
+   url = "git://github.com/luarocks/hererocks"
 }
 description = {
    summary = "A test rock for hererocks",
    detailed = "A test rock for hererocks",
-   homepage = "https://github.com/mpeterv/hererocks",
+   homepage = "https://github.com/luarocks/hererocks",
    license = "MIT <http://opensource.org/licenses/MIT>"
 }
 dependencies = {
