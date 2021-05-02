@@ -9,7 +9,7 @@ hererocks
 
 |travis| |appveyor|
 
-``hererocks`` is a single file Python 2.7/3.x script for installing `Lua <http://http://www.lua.org/>`_ (or `LuaJIT <http://luajit.org/>`_) and `LuaRocks <https://luarocks.org/>`_, its package manager, into a local directory. It configures Lua to only see packages installed by that bundled version of LuaRocks, so that the installation is isolated.
+``hererocks`` is a single file Python 2.7/3.x script for installing `Lua <https://www.lua.org/>`_ (or `LuaJIT <http://luajit.org/>`_) and `LuaRocks <https://luarocks.org/>`_, its package manager, into a local directory. It configures Lua to only see packages installed by that bundled version of LuaRocks, so that the installation is isolated.
 
 Basic usage
 -----------
